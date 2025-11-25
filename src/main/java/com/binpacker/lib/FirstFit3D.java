@@ -30,8 +30,9 @@ public class FirstFit3D implements Solver {
 			for (BinContext bin : activeBins) {
 				for (int i = 0; i < bin.freeSpaces.size(); i++) {
 					Space space = bin.freeSpaces.get(i);
-					if (canFit(box, space)) {
-						placeBox(box, bin, i);
+					BoxSpec fittedBox = findFit(box, space);
+					if (fittedBox != null) {
+						placeBox(fittedBox, bin, i);
 						placed = true;
 						break;
 					}
@@ -45,8 +46,9 @@ public class FirstFit3D implements Solver {
 				BinContext newBin = new BinContext(binTemplate);
 				activeBins.add(newBin);
 				// Try to place in the new bin (should fit if box <= bin size)
-				if (canFit(box, newBin.freeSpaces.get(0))) {
-					placeBox(box, newBin, 0);
+				BoxSpec fittedBox = findFit(box, newBin.freeSpaces.get(0));
+				if (fittedBox != null) {
+					placeBox(fittedBox, newBin, 0);
 				} else {
 					System.err.println("Box too big for bin: " + box);
 				}
@@ -61,8 +63,23 @@ public class FirstFit3D implements Solver {
 		return result;
 	}
 
-	private boolean canFit(BoxSpec box, Space space) {
-		return box.size.x <= space.w && box.size.y <= space.h && box.size.z <= space.d;
+	private BoxSpec findFit(BoxSpec box, Space space) {
+		// 1. Original (x, y, z)
+		if (box.size.x <= space.w && box.size.y <= space.h && box.size.z <= space.d) {
+			return box;
+		}
+
+		// 2. Rotate 1: (x, z, y)
+		if (box.size.x <= space.w && box.size.z <= space.h && box.size.y <= space.d) {
+			return new BoxSpec(box.position, new Point3f(box.size.x, box.size.z, box.size.y));
+		}
+
+		// 3. Rotate 2: (y, z, x)
+		if (box.size.y <= space.w && box.size.z <= space.h && box.size.x <= space.d) {
+			return new BoxSpec(box.position, new Point3f(box.size.y, box.size.z, box.size.x));
+		}
+
+		return null;
 	}
 
 	private void placeBox(BoxSpec box, BinContext bin, int spaceIndex) {
