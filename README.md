@@ -4,6 +4,8 @@ A to be modular, extendable, multi stage, multi heuristic 3d binpacker.
 The packing consists of two stages: the packing heuristic and an optimizer that 
 searches for a better solution by iterating over different packing orders.
 
+![demo packing result](https://raw.githubusercontent.com/MilanFIN/GA-binpacker/refs/heads/main/images/3dbin.png)
+
 ## Packing algorithms
 
 Implements basic first fit and best fit packing heuristics in addition
