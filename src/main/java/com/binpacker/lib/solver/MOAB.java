@@ -61,18 +61,39 @@ public class MOAB implements Solver {
 		for (Box box : boxes) {
 			boolean placed = false;
 			for (Bin bin : activeBins) {
+				float bestScore = Float.MAX_VALUE;
+				Bin bestFitBin = null;
+				int bestSpaceIndex = -1;
+				Box bestFittedBox = null;
+
 				for (int i = 0; i < bin.freeSpaces.size(); i++) {
 					Space space = bin.freeSpaces.get(i);
 					Box fittedBox = findFit(box, space);
 					if (fittedBox != null) {
-						Box placedBox = placeBox(fittedBox, bin, i);
-						pruneCollidingSpaces(placedBox, bin);
-						placed = true;
-						break;
+						float score = calculateScore(fittedBox, space);
+						if (score < bestScore) {
+							bestScore = score;
+							bestFitBin = bin;
+							bestSpaceIndex = i;
+							bestFittedBox = fittedBox;
+						}
 					}
 				}
-				if (placed)
-					break;
+
+				if (bestFittedBox != null) {
+					Box placedBox = placeBox(bestFittedBox, bestFitBin, bestSpaceIndex);
+					pruneCollidingSpaces(placedBox, bestFitBin);
+					placed = true;
+
+					bin.utilCounter++;
+					if (bin.utilCounter > 10) {
+						pruneWrappedSpacesBin(bin);
+						bin.utilCounter = 0;
+					}
+
+					break; // Break from the activeBins loop, as we've placed the box
+				}
+
 			}
 
 			if (!placed) {
@@ -85,11 +106,11 @@ public class MOAB implements Solver {
 					System.err.println("Box too big for bin: " + box);
 				}
 			}
-			periodicCleanup++;
-			if (periodicCleanup > 20) {
-				pruneWrappedSpaces(activeBins);
-				periodicCleanup = 0;
-			}
+			// periodicCleanup++;
+			// if (periodicCleanup > 20) {
+			// pruneWrappedSpaces(activeBins);
+			// periodicCleanup = 0;
+			// }
 		}
 
 		for (Bin bin : activeBins) {
@@ -256,40 +277,53 @@ public class MOAB implements Solver {
 
 	}
 
-	void pruneWrappedSpaces(List<Bin> activeBins) {
-		for (Bin bin : activeBins) {
-			for (int i = bin.freeSpaces.size() - 1; i >= 0; i--) {
-				Space space1 = bin.freeSpaces.get(i);
-				// Remove invalid spaces (zero or negative dimensions)
-				if (space1.w <= 0 || space1.h <= 0 || space1.d <= 0) {
-					bin.freeSpaces.remove(i);
-					continue;
+	void pruneWrappedSpacesBin(Bin bin) {
+		for (int i = bin.freeSpaces.size() - 1; i >= 0; i--) {
+			Space space1 = bin.freeSpaces.get(i);
+			// Remove invalid spaces (zero or negative dimensions)
+			if (space1.w <= 0 || space1.h <= 0 || space1.d <= 0) {
+				bin.freeSpaces.remove(i);
+				continue;
+			}
+
+			boolean isWrapped = false;
+			for (int j = bin.freeSpaces.size() - 1; j >= 0; j--) {
+				if (i == j) {
+					continue; // Don't compare a space with itself
 				}
+				Space space2 = bin.freeSpaces.get(j);
 
-				boolean isWrapped = false;
-				for (int j = bin.freeSpaces.size() - 1; j >= 0; j--) {
-					if (i == j) {
-						continue; // Don't compare a space with itself
-					}
-					Space space2 = bin.freeSpaces.get(j);
-
-					// Check if space1 is completely contained within space2
-					if (space1.x >= space2.x &&
-							space1.y >= space2.y &&
-							space1.z >= space2.z &&
-							(space1.x + space1.w) <= (space2.x + space2.w) &&
-							(space1.y + space1.h) <= (space2.y + space2.h) &&
-							(space1.z + space1.d) <= (space2.z + space2.d)) {
-						isWrapped = true;
-						break; // space1 is wrapped, no need to check further
-					}
-				}
-
-				if (isWrapped) {
-					bin.freeSpaces.remove(i);
+				// Check if space1 is completely contained within space2
+				if (space1.x >= space2.x &&
+						space1.y >= space2.y &&
+						space1.z >= space2.z &&
+						(space1.x + space1.w) <= (space2.x + space2.w) &&
+						(space1.y + space1.h) <= (space2.y + space2.h) &&
+						(space1.z + space1.d) <= (space2.z + space2.d)) {
+					isWrapped = true;
+					break; // space1 is wrapped, no need to check further
 				}
 			}
+
+			if (isWrapped) {
+				bin.freeSpaces.remove(i);
+			}
 		}
+	}
+
+	void pruneWrappedSpaces(List<Bin> activeBins) {
+		for (Bin bin : activeBins) {
+			pruneWrappedSpacesBin(bin);
+		}
+	}
+
+	private float calculateScore(Box box, Space space) {
+		// Add a component for distance from origin (smaller x, y, z is better)
+		// Assuming space.x, space.y, space.z are non-negative.
+		float distanceScore = space.x + space.y + space.z;
+
+		return distanceScore;
+
 	}
 
 }

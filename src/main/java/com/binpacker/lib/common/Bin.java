@@ -7,6 +7,7 @@ public class Bin {
 	public List<Box> boxes = new ArrayList<>();
 	public List<Space> freeSpaces = new ArrayList<>();
 	public int index;
+	public int utilCounter = 0;
 
 	public Bin(int index, float w, float h, float d) {
 		this.index = index;

@@ -12,6 +12,35 @@ public class GAOptimizer extends Optimizer {
 	private Random random = new Random();
 
 	@Override
+	public void generateInitialPopulation() {
+		this.boxOrders = new ArrayList<>();
+		List<Integer> base = new ArrayList<>();
+		for (int i = 0; i < boxes.size(); i++) {
+			base.add(i);
+		}
+
+		// First order: growing by volume
+		List<Integer> growingOrder = new ArrayList<>(base);
+		Collections.sort(growingOrder,
+				(i1, i2) -> Double.compare(boxes.get(i1).getVolume(), boxes.get(i2).getVolume()));
+		boxOrders.add(growingOrder);
+
+		// Second order: shrinking by volume
+		List<Integer> shrinkingOrder = new ArrayList<>(base);
+		Collections.sort(shrinkingOrder,
+				(i1, i2) -> Double.compare(boxes.get(i2).getVolume(), boxes.get(i1).getVolume()));
+		boxOrders.add(shrinkingOrder);
+
+		// Remaining orders: random
+		for (int i = 2; i < populationSize; i++) {
+			List<Integer> order = new ArrayList<>(base);
+			Collections.shuffle(order, random);
+			boxOrders.add(order);
+		}
+
+	}
+
+	@Override
 	public double rate(List<List<Box>> solution, Box bin) {
 
 		double totalUsedVolume = 0.0;

@@ -55,6 +55,10 @@ public class GuiApp extends Application {
 
 	private ComboBox<Solver> solverComboBox;
 
+	private int generations = 200;
+	private int population = 30;
+	private int eliteCount = 30;
+
 	@Override
 	public void start(Stage primaryStage) {
 		StackPane root = new StackPane();
@@ -69,7 +73,7 @@ public class GuiApp extends Application {
 		root.getChildren().add(subScene);
 
 		// Controls
-		VBox controls = new VBox(10);
+		VBox controls = new VBox(16);
 
 		this.solverComboBox = new ComboBox<>();
 		this.solverComboBox.setConverter(new javafx.util.StringConverter<Solver>() {
@@ -102,6 +106,53 @@ public class GuiApp extends Application {
 
 		Button solveButton = new Button("Solve");
 		Button exportButton = new Button("Export currently visible solution");
+
+		Label generationsLabel = new Label("Generations:");
+		javafx.scene.control.TextField generationsField = new javafx.scene.control.TextField(
+				String.valueOf(generations));
+		generationsField.textProperty().addListener((observable, oldValue, newValue) -> {
+			if (!newValue.matches("\\d*")) {
+				generationsField.setText(oldValue);
+			} else {
+				try {
+					generations = Integer.parseInt(newValue);
+				} catch (NumberFormatException ex) {
+					generations = 0; // Or some default/error handling
+				}
+			}
+		});
+
+		Label populationLabel = new Label("Population:");
+		javafx.scene.control.TextField populationField = new javafx.scene.control.TextField(String.valueOf(population));
+		populationField.textProperty().addListener((observable, oldValue, newValue) -> {
+			if (!newValue.matches("\\d*")) {
+				populationField.setText(oldValue);
+			} else {
+				try {
+					population = Integer.parseInt(newValue);
+				} catch (NumberFormatException ex) {
+					population = 0;
+				}
+			}
+		});
+
+		Label eliteCountLabel = new Label("Elite Count:");
+		javafx.scene.control.TextField eliteCountField = new javafx.scene.control.TextField(String.valueOf(eliteCount));
+		eliteCountField.textProperty().addListener((observable, oldValue, newValue) -> {
+			if (!newValue.matches("\\d*")) {
+				eliteCountField.setText(oldValue);
+			} else {
+				try {
+					eliteCount = Integer.parseInt(newValue);
+				} catch (NumberFormatException ex) {
+					eliteCount = 0;
+				}
+			}
+		});
+
+		controls.getChildren().addAll(generationsLabel, generationsField, populationLabel, populationField,
+				eliteCountLabel, eliteCountField);
+
 		statusLabel = new Label("Ready");
 		controls.getChildren().add(this.solverComboBox);
 		controls.getChildren().add(solveButton);
@@ -214,13 +265,15 @@ public class GuiApp extends Application {
 		// Solve
 		Solver solver = solverComboBox.getValue();
 		Optimizer optimizer = new GAOptimizer();
-		optimizer.initialize(solver, boxes, bin, 500, 30);
+		optimizer.initialize(solver, boxes, bin, this.population, this.eliteCount);
 
 		Random random = new Random();
 		List<Color> boxColors = new ArrayList<>();
 		for (int i = 0; i < boxes.size(); i++) {
 			boxColors.add(Color.rgb(random.nextInt(256), random.nextInt(256), random.nextInt(256)));
 		}
+
+		int generations = this.generations;
 
 		Task<Void> solverTask = new Task<Void>() {
 			@Override
@@ -230,7 +283,7 @@ public class GuiApp extends Application {
 					world.getChildren().add(solverOutputGroup);
 				});
 
-				for (int i = 0; i < 10; i++) {
+				for (int i = 0; i < generations; i++) {
 					result = optimizer.executeNextGeneration();
 					final double rawRate = optimizer.rate(result, bin) * 100;
 					final String rate = String.format("%.2f", rawRate);

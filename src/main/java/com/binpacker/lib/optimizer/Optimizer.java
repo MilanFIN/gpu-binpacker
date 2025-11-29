@@ -17,12 +17,12 @@ import com.binpacker.lib.solver.Solver;
 public abstract class Optimizer {
 
 	private Solver solver;
-	private List<Box> boxes;
+	protected List<Box> boxes;
 	private Box bin;
 
-	private List<List<Integer>> boxOrders; // Population
+	protected List<List<Integer>> boxOrders; // Population
 	private Random random = new Random();
-	private int populationSize;
+	protected int populationSize;
 	private int eliteCount;
 
 	protected abstract List<Integer> crossOver(List<Integer> parent1, List<Integer> parent2);
@@ -38,33 +38,27 @@ public abstract class Optimizer {
 		this.bin = bin;
 		this.populationSize = populationSize;
 		this.eliteCount = eliteCount;
+
+		generateInitialPopulation();
+	}
+
+	public void generateInitialPopulation() {
+		boxOrders = new ArrayList<>();
+
+		List<Integer> base = new ArrayList<>();
+		for (int i = 0; i < boxes.size(); i++)
+			base.add(i);
+
+		for (int i = 0; i < populationSize; i++) {
+			List<Integer> order = new ArrayList<>(base);
+			Collections.shuffle(order, random);
+			boxOrders.add(order);
+		}
 	}
 
 	// ---- Main GA Logic ----
 	public List<List<Box>> executeNextGeneration() {
 
-		boolean isFirstGen = (boxOrders == null);
-
-		// ---------------------------------------------------------
-		// Generation 0: create random population
-		// ---------------------------------------------------------
-		if (isFirstGen) {
-			boxOrders = new ArrayList<>();
-
-			List<Integer> base = new ArrayList<>();
-			for (int i = 0; i < boxes.size(); i++)
-				base.add(i);
-
-			for (int i = 0; i < populationSize; i++) {
-				List<Integer> order = new ArrayList<>(base);
-				Collections.shuffle(order, random);
-				boxOrders.add(order);
-			}
-		}
-
-		// ---------------------------------------------------------
-		// Evaluate population: solve and rate
-		// ---------------------------------------------------------
 		List<ScoredSolution> scored = new ArrayList<>();
 
 		int numThreads = Runtime.getRuntime().availableProcessors();

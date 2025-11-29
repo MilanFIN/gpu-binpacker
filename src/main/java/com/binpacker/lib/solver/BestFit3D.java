@@ -97,12 +97,16 @@ public class BestFit3D implements Solver {
 	}
 
 	private float calculateScore(Box box, Space space) {
-		// Score = volume of space - volume of box (wasted space in that specific free
-		// space)
-		// Smaller is better.
 		float spaceVol = space.w * space.h * space.d;
 		float boxVol = box.size.x * box.size.y * box.size.z;
-		return spaceVol - boxVol;
+		float wastedSpaceScore = spaceVol - boxVol;
+
+		// Add a component for distance from origin (smaller x, y, z is better)
+		// Assuming space.x, space.y, space.z are non-negative.
+		float distanceScore = space.x + space.y + space.z;
+
+		return wastedSpaceScore + distanceScore;
+
 	}
 
 	private void placeBox(Box box, Bin bin, int spaceIndex) {
