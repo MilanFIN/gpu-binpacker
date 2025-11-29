@@ -9,8 +9,8 @@ searches for a better solution by iterating over different packing orders.
 ## Packing algorithms
 
 Implements basic first fit and best fit packing heuristics in addition
-to derived custom algorithms. Custom ones are slower, but produce
-better results (>10% difference on the demo)
+to a derived custom algorithm. The custom algo in combination with the 
+genetic algorithm produces >10% denser results than a basic LAFF without a GA.
 
 ## Optimizer
 
