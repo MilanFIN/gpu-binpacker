@@ -11,29 +11,29 @@ import com.binpacker.lib.common.Space;
 public class MOAB implements Solver {
 
 	@Override
-	public List<List<Box>> solve(List<Box> boxes, Box binTemplate, boolean growingBin, String growAxis) {
+	public List<List<Box>> solve(List<Box> boxes, Bin binTemplate, boolean growingBin, String growAxis) {
 		List<Bin> activeBins = new ArrayList<>();
 		List<List<Box>> result = new ArrayList<>();
 
 		if (growingBin) {
 			switch (growAxis) {
 				case "x":
-					binTemplate.size.x = Integer.MAX_VALUE;
+					binTemplate.w = Integer.MAX_VALUE;
 					break;
 				case "y":
-					binTemplate.size.y = Integer.MAX_VALUE;
+					binTemplate.h = Integer.MAX_VALUE;
 					break;
 				case "z":
-					binTemplate.size.z = Integer.MAX_VALUE;
+					binTemplate.d = Integer.MAX_VALUE;
 					break;
 				default:
 					System.err.println("Invalid growAxis specified: " + growAxis);
-					binTemplate.size.y = Integer.MAX_VALUE;
+					binTemplate.h = Integer.MAX_VALUE;
 					break;
 			}
 		}
 
-		activeBins.add(new Bin(binTemplate));
+		activeBins.add(new Bin(0, binTemplate.w, binTemplate.h, binTemplate.d));
 
 		for (Box box : boxes) {
 			boolean placed = false;
@@ -74,7 +74,7 @@ public class MOAB implements Solver {
 			}
 
 			if (!placed) {
-				Bin newBin = new Bin(activeBins.size(), binTemplate);
+				Bin newBin = new Bin(activeBins.size(), binTemplate.w, binTemplate.h, binTemplate.d);
 				activeBins.add(newBin);
 				Box fittedBox = findFit(box, newBin.freeSpaces.get(0));
 				if (fittedBox != null) {

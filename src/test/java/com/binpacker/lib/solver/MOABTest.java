@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.binpacker.lib.common.Bin;
 import com.binpacker.lib.common.Box;
 import com.binpacker.lib.common.Point3f;
 
@@ -17,7 +18,7 @@ class MOABTest {
 		List<Box> boxes = new ArrayList<>();
 		boxes.add(new Box(1, new Point3f(0, 0, 0), new Point3f(2, 2, 2)));
 		boxes.add(new Box(2, new Point3f(0, 0, 0), new Point3f(3, 3, 3)));
-		Box binTemplate = new Box(0, new Point3f(0, 0, 0), new Point3f(10, 10, 10));
+		Bin binTemplate = new Bin(0, 10, 10, 10);
 
 		List<List<Box>> result = solver.solve(boxes, binTemplate, false, "x");
 

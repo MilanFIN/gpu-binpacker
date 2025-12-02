@@ -11,6 +11,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import com.binpacker.lib.common.Bin;
 import com.binpacker.lib.common.Box;
 import com.binpacker.lib.solver.Solver;
 
@@ -18,7 +19,7 @@ public abstract class Optimizer {
 
 	private Solver solver;
 	protected List<Box> boxes;
-	private Box bin;
+	private Bin bin;
 
 	protected List<List<Integer>> boxOrders; // Population
 	private Random random = new Random();
@@ -31,10 +32,10 @@ public abstract class Optimizer {
 
 	protected abstract List<Integer> mutate(List<Integer> order);
 
-	public abstract double rate(List<List<Box>> solution, Box bin);
+	public abstract double rate(List<List<Box>> solution, Bin bin);
 
 	// ---- Initialize ----
-	public void initialize(Solver solver, List<Box> boxes, Box bin, boolean growingBin, String growAxis,
+	public void initialize(Solver solver, List<Box> boxes, Bin bin, boolean growingBin, String growAxis,
 			int populationSize,
 			int eliteCount) {
 		this.solver = solver;

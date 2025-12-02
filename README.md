@@ -1,4 +1,4 @@
-# GA-binpacker
+# 3D binpacker with a genetic algorithm
 
 A to be modular, extendable, multi stage, multi heuristic 3d binpacker.
 The packing consists of two stages: the packing heuristic and an optimizer that 
@@ -9,8 +9,8 @@ searches for a better solution by iterating over different packing orders.
 ## Packing algorithms
 
 Implements basic first fit and best fit packing heuristics in addition
-to a derived custom algorithm. The custom algo in combination with the 
-genetic algorithm produces >10% denser results than a basic LAFF without a GA.
+to a derived algorithm based on the first fit heuristic and some tricks
+related to maximal remaining space bookkeping. 
 
 ## Optimizer
 

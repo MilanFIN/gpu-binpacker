@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Random;
 
+import com.binpacker.lib.common.Bin;
 import com.binpacker.lib.common.Box;
 
 public class GAOptimizer extends Optimizer {
@@ -41,7 +42,7 @@ public class GAOptimizer extends Optimizer {
 	}
 
 	@Override
-	public double rate(List<List<Box>> solution, Box bin) {
+	public double rate(List<List<Box>> solution, Bin bin) {
 
 		if (growingBin) {
 			double maxExtent = 0.0;

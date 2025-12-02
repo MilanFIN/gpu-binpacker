@@ -20,9 +20,11 @@ import javafx.scene.SubScene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.geometry.Pos;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
 
 import javafx.scene.shape.Box;
 import javafx.scene.paint.Color;
@@ -38,6 +40,44 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+
+class NumberTextField extends TextField {
+
+	private float value;
+
+	public NumberTextField(float value) {
+		this.value = value;
+		this.setText(String.valueOf(value));
+
+		this.textProperty().addListener((observable, oldValue, newValue) -> {
+			try {
+				this.value = Float.parseFloat(newValue);
+			} catch (NumberFormatException e) {
+				// Handle cases where the text might be empty or not a valid number
+				// (though replaceText/replaceSelection should prevent non-numeric input)
+				this.value = 0.0f; // Default to 0.0 if parsing fails
+			}
+		});
+	}
+
+	@Override
+	public void replaceText(int start, int end, String text) {
+		if (text.matches("[0-9]*")) {
+			super.replaceText(start, end, text);
+		}
+	}
+
+	@Override
+	public void replaceSelection(String text) {
+		if (text.matches("[0-9]*")) {
+			super.replaceSelection(text);
+		}
+	}
+
+	public float getValue() {
+		return value;
+	}
+}
 
 public class GuiApp extends Application {
 
@@ -62,6 +102,10 @@ public class GuiApp extends Application {
 
 	private String axis = "x";
 
+	NumberTextField binWidthField = new NumberTextField(30);
+	NumberTextField binHeightField = new NumberTextField(30);
+	NumberTextField binDepthField = new NumberTextField(30);
+
 	@Override
 	public void start(Stage primaryStage) {
 		StackPane root = new StackPane();
@@ -77,6 +121,15 @@ public class GuiApp extends Application {
 
 		// Controls
 		VBox controls = new VBox(16);
+
+		Label binLabel = new Label("Bin dimensions:");
+
+		HBox binDimensionFields = new HBox(1);
+		binDimensionFields.setMaxWidth(200); // Example width, adjust as needed
+		binDimensionFields.setAlignment(Pos.CENTER_LEFT);
+		binDimensionFields.getChildren().addAll(binWidthField, binHeightField, binDepthField);
+
+		controls.getChildren().addAll(binLabel, binDimensionFields);
 
 		this.solverComboBox = new ComboBox<>();
 		this.solverComboBox.setConverter(new javafx.util.StringConverter<Solver>() {
@@ -162,7 +215,7 @@ public class GuiApp extends Application {
 		growingBinCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
 			growingBin = newValue;
 		});
-		javafx.scene.layout.HBox growingBinHBox = new javafx.scene.layout.HBox(10); // 10 is spacing
+		HBox growingBinHBox = new javafx.scene.layout.HBox(10); // 10 is spacing
 		growingBinHBox.setAlignment(Pos.CENTER_LEFT);
 		Label axisLabel = new Label("Axis");
 		ComboBox<String> axisComboBox = new ComboBox<>();
@@ -188,7 +241,7 @@ public class GuiApp extends Application {
 
 		// Wrap controls in a Group or just align them in the StackPane
 		StackPane.setAlignment(controls, Pos.CENTER_LEFT);
-		StackPane.setMargin(controls, new javafx.geometry.Insets(20));
+		StackPane.setMargin(controls, new javafx.geometry.Insets(5));
 
 		root.getChildren().add(controls);
 
@@ -283,8 +336,8 @@ public class GuiApp extends Application {
 
 		// Generate Data
 		List<com.binpacker.lib.common.Box> boxes = generateRandomBoxes(500);
-		com.binpacker.lib.common.Box bin = new com.binpacker.lib.common.Box(new Point3f(0, 0, 0),
-				new Point3f(30, 30, 30));
+		com.binpacker.lib.common.Bin bin = new com.binpacker.lib.common.Bin(0, binWidthField.getValue(),
+				binHeightField.getValue(), binDepthField.getValue());
 		// Solve
 		Solver solver = solverComboBox.getValue();
 		Optimizer optimizer = new GAOptimizer();
@@ -335,12 +388,12 @@ public class GuiApp extends Application {
 							}
 
 							// Draw bin outline
-							Box binBox = new Box(bin.size.x, bin.size.y, bin.size.z);
+							Box binBox = new Box(bin.w, bin.h, bin.d);
 							binBox.setDrawMode(DrawMode.LINE);
 							binBox.setMaterial(new PhongMaterial(Color.BLACK));
-							binBox.setTranslateX(bin.position.x + bin.size.x / 2 + binOffset);
-							binBox.setTranslateY(bin.position.y + bin.size.y / 2);
-							binBox.setTranslateZ(bin.position.z + bin.size.z / 2);
+							binBox.setTranslateX(bin.w / 2 + binOffset);
+							binBox.setTranslateY(bin.h / 2);
+							binBox.setTranslateZ(bin.d / 2);
 							solverOutputGroup.getChildren().add(binBox);
 
 							binOffset += 40; // Space out bins
