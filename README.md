@@ -19,3 +19,10 @@ for use with the selected packing algorithm.
 
 Performs crossover and mutations to generate new packing orders
 based on the best scoring results of the previous generation.
+
+## OpenCL
+
+Uses [JOCL](https://github.com/gpu/JOCL). 
+
+Make sure the opencl device is available with `clinfo`
+and that `libOpenCL.so` is visible, eg. in `/usr/lib/x86_64-linux-gnu/libOpenCL.so`

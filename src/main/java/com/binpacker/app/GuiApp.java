@@ -2,6 +2,7 @@ package com.binpacker.app;
 
 import com.binpacker.lib.common.Point3f;
 import com.binpacker.lib.common.Utils;
+import com.binpacker.lib.ocl.JOCLHelper;
 import com.binpacker.lib.optimizer.GAOptimizer;
 import com.binpacker.lib.optimizer.Optimizer;
 import com.binpacker.lib.solver.BestFit3D;
@@ -228,6 +229,39 @@ public class GuiApp extends Application {
 		growingBinHBox.getChildren().addAll(growingBinLabel, growingBinCheckBox);
 		growingBinHBox.getChildren().addAll(axisLabel, axisComboBox);
 		controls.getChildren().add(growingBinHBox);
+
+		List<JOCLHelper.OpenCLDevice> devices = JOCLHelper.getAvailableDevices();
+		System.out.println("Available devices: " + devices);
+		Label openCLDeviceLabel = new Label("OpenCL Device:");
+		HBox openCLDeviceHBox = new javafx.scene.layout.HBox(10); // 10 is spacing
+		openCLDeviceHBox.setAlignment(Pos.CENTER_LEFT);
+		ComboBox<JOCLHelper.OpenCLDevice> openCLDeviceComboBox = new ComboBox<>();
+		openCLDeviceComboBox.getItems().addAll(devices);
+		openCLDeviceComboBox.setConverter(new javafx.util.StringConverter<JOCLHelper.OpenCLDevice>() {
+			@Override
+			public String toString(JOCLHelper.OpenCLDevice device) {
+
+				return device != null
+						? (device.toString().length() > 20 ? device.toString().substring(0, 20) : device.toString())
+						: "N/A";
+			}
+
+			@Override
+			public JOCLHelper.OpenCLDevice fromString(String string) {
+				return null;
+			}
+		});
+		if (!devices.isEmpty()) {
+			openCLDeviceComboBox.setValue(devices.get(0));
+		}
+		Button testButton = new Button("Test");
+		testButton.setOnAction(e -> {
+			// No action defined yet, as per instruction
+		});
+
+		openCLDeviceHBox.getChildren().addAll(openCLDeviceComboBox, testButton);
+		controls.getChildren().add(openCLDeviceLabel);
+		controls.getChildren().add(openCLDeviceHBox);
 
 		statusLabel = new Label("Ready");
 		controls.getChildren().add(this.solverComboBox);
