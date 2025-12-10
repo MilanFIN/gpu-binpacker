@@ -1,6 +1,7 @@
 package com.binpacker.lib.solver;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import com.binpacker.lib.common.Box;
@@ -12,6 +13,11 @@ import com.binpacker.lib.ocl.KernelUtils;
 import com.binpacker.lib.solver.common.PlacementUtils;
 import com.binpacker.lib.solver.common.SolverProperties;
 
+import org.jocl.*;
+import static org.jocl.CL.*;
+
+import com.binpacker.lib.ocl.OpenCLDevice;
+
 public class FFEMSOCL implements SolverInterface {
 
 	private String firstFitKernelSource;
@@ -21,6 +27,17 @@ public class FFEMSOCL implements SolverInterface {
 	private boolean growingBin;
 	private String growAxis;
 
+	// OpenCL resources
+	private cl_context clContext;
+	private cl_command_queue clQueue;
+	private cl_program clProgram;
+	private cl_kernel firstFitKernel;
+
+	// Optimization: Reuse buffers
+	private cl_mem inputBuffer;
+	private cl_mem outputBuffer;
+	private int currentBufferCapacity = 0;
+
 	@Override
 	public void init(SolverProperties properties) {
 		this.binTemplate = properties.bin;
@@ -28,6 +45,70 @@ public class FFEMSOCL implements SolverInterface {
 		this.growAxis = properties.growAxis;
 		this.firstFitKernelSource = KernelUtils.loadKernelSource("firstfit_rotate.cl");
 		this.spaceCollisionKernelSource = KernelUtils.loadKernelSource("box_collides_with_space.cl");
+
+		initOpenCL(properties.openCLDevice);
+	}
+
+	private void initOpenCL(OpenCLDevice preference) {
+		// Enable exceptions
+		CL.setExceptionsEnabled(true);
+
+		int platformIndex = 0;
+		int deviceIndex = 0;
+
+		if (preference != null) {
+			platformIndex = preference.platformIndex;
+			deviceIndex = preference.deviceIndex;
+		}
+
+		// 1. Get platform
+		int[] numPlatformsArray = new int[1];
+		clGetPlatformIDs(0, null, numPlatformsArray);
+		int numPlatforms = numPlatformsArray[0];
+		if (numPlatforms == 0) {
+			throw new RuntimeException("No OpenCL platforms found");
+		}
+
+		if (platformIndex >= numPlatforms) {
+			throw new RuntimeException("Invalid OpenCL platform index: " + platformIndex);
+		}
+
+		cl_platform_id[] platforms = new cl_platform_id[numPlatforms];
+		clGetPlatformIDs(platforms.length, platforms, null);
+		cl_platform_id platform = platforms[platformIndex];
+
+		// 2. Get device
+		int[] numDevicesArray = new int[1];
+		clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 0, null, numDevicesArray);
+		int numDevices = numDevicesArray[0];
+		if (numDevices == 0) {
+			throw new RuntimeException("No OpenCL devices found on platform " + platformIndex);
+		}
+
+		if (deviceIndex >= numDevices) {
+			throw new RuntimeException("Invalid OpenCL device index: " + deviceIndex);
+		}
+
+		cl_device_id[] devices = new cl_device_id[numDevices];
+		clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, numDevices, devices, null);
+		cl_device_id device = devices[deviceIndex];
+
+		// 3. Create context
+		cl_context_properties contextProperties = new cl_context_properties();
+		contextProperties.addProperty(CL_CONTEXT_PLATFORM, platform);
+		clContext = clCreateContext(contextProperties, 1, new cl_device_id[] { device }, null, null, null);
+
+		// 4. Create command queue
+		// Use default properties (0) or CL_QUEUE_PROFILING_ENABLE if needed
+		cl_queue_properties queueProperties = new cl_queue_properties();
+		clQueue = clCreateCommandQueueWithProperties(clContext, device, queueProperties, null);
+
+		// 5. Create Program
+		clProgram = clCreateProgramWithSource(clContext, 1, new String[] { firstFitKernelSource }, null, null);
+		clBuildProgram(clProgram, 0, null, null, null, null);
+
+		// 6. Create Kernel
+		firstFitKernel = clCreateKernel(clProgram, "firstfit_rotate", null);
 	}
 
 	@Override
@@ -56,28 +137,32 @@ public class FFEMSOCL implements SolverInterface {
 		activeBins.add(new Bin(0, binTemplate.w, binTemplate.h, binTemplate.d));
 
 		for (Box box : boxes) {
+			// System.out.println("Placing box " + box);
 			boolean placed = false;
 			for (Bin bin : activeBins) {
-				for (int i = 0; i < bin.freeSpaces.size(); i++) {
-					Space space = bin.freeSpaces.get(i);
-					Box fittedBox = PlacementUtils.findFit(box, space);
-					if (fittedBox != null) {
-						placeBox(fittedBox, bin, i);
-						pruneCollidingSpaces(fittedBox, bin);
-						placed = true;
-						break;
-					}
-				}
-				if (placed)
+
+				// Use OpenCL to find best fit
+				BoxWithIndex fit = findFit(box, bin.freeSpaces);
+
+				if (fit != null) {
+					PlacementUtils.placeBoxBSP(fit.box, bin, fit.index);
+					// pruneCollidingSpaces(fit.box, bin);
+					placed = true;
 					break;
+				}
 			}
 
 			if (!placed) {
 				Bin newBin = new Bin(activeBins.size(), binTemplate.w, binTemplate.h, binTemplate.d);
 				activeBins.add(newBin);
-				Box fittedBox = PlacementUtils.findFit(box, newBin.freeSpaces.get(0));
-				if (fittedBox != null) {
-					placeBox(fittedBox, newBin, 0);
+				// Still use CPU for single check on new bin, or just reuse finding
+				// Since new bin usually has 1 free space (the whole bin), CPU is fast enough,
+				// but consistency is nice.
+				// However, new bin has 1 space: (0,0,0, w,h,d).
+
+				Box fitBox = PlacementUtils.findFit(box, newBin.freeSpaces.get(0));
+				if (fitBox != null) {
+					PlacementUtils.placeBoxBSP(fitBox, newBin, 0);
 				} else {
 					System.err.println("Box too big for bin: " + box);
 				}
@@ -118,168 +203,90 @@ public class FFEMSOCL implements SolverInterface {
 			result.add(bin.boxes);
 		}
 
+		// Clean up? Not really possible here unless we have a close method.
+		// For now let JVM/OS clean up on exit.
+
+		// clReleaseKernel(firstFitKernel);
+		// clReleaseProgram(clProgram);
+		// clReleaseCommandQueue(clQueue);
+		// clReleaseContext(clContext);
+
 		return result;
 	}
 
-	private Box placeBox(Box box, Bin bin, int spaceIndex) {
-		Space space = bin.freeSpaces.get(spaceIndex);
+	private static class BoxWithIndex {
+		Box box;
+		int index;
 
-		Box placedBox = new Box(
-				box.id,
-				new Point3f(space.x, space.y, space.z),
-				new Point3f(box.size.x, box.size.y, box.size.z));
-		bin.boxes.add(placedBox);
-
-		bin.freeSpaces.remove(spaceIndex);
-
-		Space right = new Space(space.x + box.size.x, space.y, space.z,
-				space.w - box.size.x, space.h, space.d);
-
-		Space top = new Space(space.x, space.y + box.size.y, space.z,
-				space.w, space.h - box.size.y, space.d);
-
-		Space front = new Space(space.x, space.y, space.z + box.size.z,
-				space.w, space.h, space.d - box.size.z);
-
-		if (right.w > 0 && right.h > 0 && right.d > 0)
-			bin.freeSpaces.add(right);
-		if (top.w > 0 && top.h > 0 && top.d > 0)
-			bin.freeSpaces.add(top);
-		if (front.w > 0 && front.h > 0 && front.d > 0)
-			bin.freeSpaces.add(front);
-
-		return placedBox;
-
-	}
-
-	private void pruneCollidingSpaces(Box box, Bin bin) {
-		// can ignore 4 first ones, since those are created around the latest box
-		// placement
-		for (int i = bin.freeSpaces.size() - 1; i >= 0; i--) {
-			Space space = bin.freeSpaces.get(i);
-			if (box.collidesWith(space)) {
-				bin.freeSpaces.remove(i);
-				splitCollidingFreeSpace(box, space, bin);
-			}
+		public BoxWithIndex(Box box, int index) {
+			this.box = box;
+			this.index = index;
 		}
 	}
 
-	private void splitCollidingFreeSpace(Box box, Space space, Bin bin) {
-		// Create 4 new spaces around the box in the XY plane
-		// Z and Depth are inherited from the original space
+	private BoxWithIndex findFit(Box box, List<Space> spaces) {
+		if (spaces.isEmpty())
+			return null;
 
-		// 1. Right space (from box right edge to space right edge)
-		if (box.position.x + box.size.x < space.x + space.w) {
-			Space right = new Space(
-					box.position.x + box.size.x,
-					space.y,
-					space.z,
-					(space.x + space.w) - (box.position.x + box.size.x),
-					space.h,
-					space.d);
-			bin.freeSpaces.add(right);
+		int numSpaces = spaces.size();
+		float[] spaceData = new float[numSpaces * 3]; // w, h, d
+		for (int i = 0; i < numSpaces; i++) {
+			Space s = spaces.get(i);
+			spaceData[i * 3 + 0] = s.w;
+			spaceData[i * 3 + 1] = s.h;
+			spaceData[i * 3 + 2] = s.d;
 		}
 
-		// 2. Left space (from space left edge to box left edge)
-		if (box.position.x > space.x) {
-			Space left = new Space(
-					space.x,
-					space.y,
-					space.z,
-					box.position.x - space.x,
-					space.h,
-					space.d);
-			bin.freeSpaces.add(left);
-		}
-
-		// 3. Top space (from box top edge to space top edge)
-		if (box.position.y + box.size.y < space.y + space.h) {
-			Space top = new Space(
-					space.x,
-					box.position.y + box.size.y,
-					space.z,
-					space.w,
-					(space.y + space.h) - (box.position.y + box.size.y),
-					space.d);
-			bin.freeSpaces.add(top);
-		}
-
-		// 4. Bottom space (from space bottom edge to box bottom edge)
-		if (box.position.y > space.y) {
-			Space bottom = new Space(
-					space.x,
-					space.y,
-					space.z,
-					space.w,
-					box.position.y - space.y,
-					space.d);
-			bin.freeSpaces.add(bottom);
-		}
-
-		// 5. Front space (from box front edge to space front edge)
-		if (box.position.z + box.size.z < space.z + space.d) {
-			Space front = new Space(
-					space.x,
-					space.y,
-					box.position.z + box.size.z,
-					space.w,
-					space.h,
-					(space.z + space.d) - (box.position.z + box.size.z));
-			bin.freeSpaces.add(front);
-		}
-
-		// 6. Back space (from space back edge to box back edge)
-		if (box.position.z > space.z) {
-			Space back = new Space(
-					space.x,
-					space.y,
-					space.z,
-					space.w,
-					space.h,
-					box.position.z - space.z);
-			bin.freeSpaces.add(back);
-		}
-
-	}
-
-	void pruneWrappedSpacesBin(Bin bin) {
-		for (int i = bin.freeSpaces.size() - 1; i >= 0; i--) {
-			Space space1 = bin.freeSpaces.get(i);
-			// Remove invalid spaces (zero or negative dimensions)
-			if (space1.w <= 0 || space1.h <= 0 || space1.d <= 0) {
-				bin.freeSpaces.remove(i);
-				continue;
+		// Resize buffers if needed
+		if (numSpaces > currentBufferCapacity) {
+			if (inputBuffer != null) {
+				clReleaseMemObject(inputBuffer);
+			}
+			if (outputBuffer != null) {
+				clReleaseMemObject(outputBuffer);
 			}
 
-			boolean isWrapped = false;
-			for (int j = bin.freeSpaces.size() - 1; j >= 0; j--) {
-				if (i == j) {
-					continue; // Don't compare a space with itself
-				}
-				Space space2 = bin.freeSpaces.get(j);
-
-				// Check if space1 is completely contained within space2
-				if (space1.x >= space2.x &&
-						space1.y >= space2.y &&
-						space1.z >= space2.z &&
-						(space1.x + space1.w) <= (space2.x + space2.w) &&
-						(space1.y + space1.h) <= (space2.y + space2.h) &&
-						(space1.z + space1.d) <= (space2.z + space2.d)) {
-					isWrapped = true;
-					break; // space1 is wrapped, no need to check further
-				}
+			// Grow by 100% to avoid frequent re-allocations
+			currentBufferCapacity = (int) (numSpaces * 2);
+			if (currentBufferCapacity < numSpaces) {
+				currentBufferCapacity = numSpaces;
 			}
 
-			if (isWrapped) {
-				bin.freeSpaces.remove(i);
+			inputBuffer = clCreateBuffer(clContext, CL_MEM_READ_ONLY,
+					(long) Sizeof.cl_float * currentBufferCapacity * 3, null, null);
+
+			outputBuffer = clCreateBuffer(clContext, CL_MEM_READ_WRITE,
+					(long) Sizeof.cl_float * currentBufferCapacity, null, null);
+		}
+
+		// Update data
+		clEnqueueWriteBuffer(clQueue, inputBuffer, CL_TRUE, 0,
+				(long) Sizeof.cl_float * spaceData.length, Pointer.to(spaceData), 0, null, null);
+
+		// Set args
+		clSetKernelArg(firstFitKernel, 0, Sizeof.cl_float, Pointer.to(new float[] { box.size.x }));
+		clSetKernelArg(firstFitKernel, 1, Sizeof.cl_float, Pointer.to(new float[] { box.size.y }));
+		clSetKernelArg(firstFitKernel, 2, Sizeof.cl_float, Pointer.to(new float[] { box.size.z }));
+		clSetKernelArg(firstFitKernel, 3, Sizeof.cl_mem, Pointer.to(inputBuffer));
+		clSetKernelArg(firstFitKernel, 4, Sizeof.cl_mem, Pointer.to(outputBuffer));
+
+		// Run
+		long[] globalWorkSize = new long[] { numSpaces };
+		clEnqueueNDRangeKernel(clQueue, firstFitKernel, 1, null, globalWorkSize, null, 0, null, null);
+
+		// Read back
+		float[] results = new float[numSpaces];
+		clEnqueueReadBuffer(clQueue, outputBuffer, CL_TRUE, 0,
+				(long) Sizeof.cl_float * results.length, Pointer.to(results), 0, null, null);
+
+		// System.out.println("Results: " + Arrays.toString(results));
+		for (int i = 0; i < numSpaces; i++) {
+			if (results[i] > 0) {
+				return new BoxWithIndex(box, i);
 			}
 		}
-	}
 
-	void pruneWrappedSpaces(List<Bin> activeBins) {
-		for (Bin bin : activeBins) {
-			pruneWrappedSpacesBin(bin);
-		}
+		return null;
 	}
 
 	private float calculateScore(Box box, Space space) {

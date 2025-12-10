@@ -11,67 +11,20 @@ __kernel void firstfit_rotate(
     float space_h = spaces[space_offset + 1];
     float space_d = spaces[space_offset + 2];
 
-    // Result is 4 elements per space [fits, w, h, d] (box dimensions)
-    int res_offset = gid * 4;
-    
-    // Default to not fitting
-    results[res_offset] = 0.0f; 
-    results[res_offset + 1] = 0.0f;
-    results[res_offset + 2] = 0.0f;
-    results[res_offset + 3] = 0.0f;
+    // Result is 1 element per space [fits]
+    int res_offset = gid;
+
+
 
     // 1. (x, y, z)
     if (box_w <= space_w && box_h <= space_h && box_d <= space_d) {
         results[res_offset] = 1.0f;
-        results[res_offset + 1] = box_w;
-        results[res_offset + 2] = box_h;
-        results[res_offset + 3] = box_d;
+        return;
+    }
+    else {
+        results[res_offset] = 0.0f;
         return;
     }
 
-    // 2. (x, z, y) -> (w, d, h)
-    if (box_w <= space_w && box_d <= space_h && box_h <= space_d) {
-        results[res_offset] = 1.0f;
-        results[res_offset + 1] = box_w;
-        results[res_offset + 2] = box_d;
-        results[res_offset + 3] = box_h;
-        return;
-    }
-
-    // 3. (y, x, z) -> (h, w, d)
-    if (box_h <= space_w && box_w <= space_h && box_d <= space_d) {
-        results[res_offset] = 1.0f;
-        results[res_offset + 1] = box_h;
-        results[res_offset + 2] = box_w;
-        results[res_offset + 3] = box_d;
-        return;
-    }
-
-    // 4. (y, z, x) -> (h, d, w)
-    if (box_h <= space_w && box_d <= space_h && box_w <= space_d) {
-        results[res_offset] = 1.0f;
-        results[res_offset + 1] = box_h;
-        results[res_offset + 2] = box_d;
-        results[res_offset + 3] = box_w;
-        return;
-    }
-
-    // 5. (z, x, y) -> (d, w, h)
-    if (box_d <= space_w && box_w <= space_h && box_h <= space_d) {
-        results[res_offset] = 1.0f;
-        results[res_offset + 1] = box_d;
-        results[res_offset + 2] = box_w;
-        results[res_offset + 3] = box_h;
-        return;
-    }
-
-    // 6. (z, y, x) -> (d, h, w)
-    if (box_d <= space_w && box_h <= space_h && box_w <= space_d) {
-        results[res_offset] = 1.0f;
-        results[res_offset + 1] = box_d;
-        results[res_offset + 2] = box_h;
-        results[res_offset + 3] = box_w;
-        return;
-    }
 }
 

@@ -28,6 +28,8 @@ public abstract class Optimizer {
 	protected boolean growingBin;
 	protected String growAxis;
 
+	protected boolean threaded;
+
 	protected abstract List<Integer> crossOver(List<Integer> parent1, List<Integer> parent2);
 
 	protected abstract List<Integer> mutate(List<Integer> order);
@@ -37,7 +39,7 @@ public abstract class Optimizer {
 	// ---- Initialize ----
 	public void initialize(SolverInterface solver, List<Box> boxes, Bin bin, boolean growingBin, String growAxis,
 			int populationSize,
-			int eliteCount) {
+			int eliteCount, boolean threaded) {
 		this.solver = solver;
 		this.boxes = boxes;
 		this.bin = bin;
@@ -45,6 +47,7 @@ public abstract class Optimizer {
 		this.growAxis = growAxis;
 		this.populationSize = populationSize;
 		this.eliteCount = eliteCount;
+		this.threaded = threaded;
 
 		generateInitialPopulation();
 	}
@@ -72,33 +75,43 @@ public abstract class Optimizer {
 		ExecutorService executor = Executors.newFixedThreadPool(numThreads);
 		List<Future<ScoredSolution>> futures = new ArrayList<>();
 
-		for (List<Integer> order : boxOrders) {
-			futures.add(executor.submit(() -> {
+		if (this.threaded) {
+			for (List<Integer> order : boxOrders) {
+				futures.add(executor.submit(() -> {
+					List<Box> orderedBoxes = applyOrder(order);
+					List<List<Box>> solved = solver.solve(orderedBoxes);
+					double score = rate(solved, this.bin);
+					return new ScoredSolution(order, score, solved);
+				}));
+			}
+
+			for (Future<ScoredSolution> future : futures) {
+				try {
+					scored.add(future.get());
+				} catch (InterruptedException | ExecutionException e) {
+					Thread.currentThread().interrupt(); // Restore interrupt status
+					// Handle or log the exception, e.g., System.err.println("Error processing task:
+					// " + e.getMessage());
+				}
+			}
+
+			executor.shutdown();
+			try {
+				if (!executor.awaitTermination(3, TimeUnit.MINUTES)) { // Wait for tasks to complete
+					// Optionally, force shutdown if tasks don't complete in time
+					executor.shutdownNow();
+				}
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				executor.shutdownNow(); // Cancel currently executing tasks
+			}
+		} else {
+			for (List<Integer> order : boxOrders) {
 				List<Box> orderedBoxes = applyOrder(order);
 				List<List<Box>> solved = solver.solve(orderedBoxes);
 				double score = rate(solved, this.bin);
-				return new ScoredSolution(order, score, solved);
-			}));
-		}
-
-		for (Future<ScoredSolution> future : futures) {
-			try {
-				scored.add(future.get());
-			} catch (InterruptedException | ExecutionException e) {
-				Thread.currentThread().interrupt(); // Restore interrupt status
-				// Handle or log the exception, e.g., System.err.println("Error processing task:
-				// " + e.getMessage());
+				scored.add(new ScoredSolution(order, score, solved));
 			}
-		}
-		executor.shutdown();
-		try {
-			if (!executor.awaitTermination(3, TimeUnit.MINUTES)) { // Wait for tasks to complete
-				// Optionally, force shutdown if tasks don't complete in time
-				executor.shutdownNow();
-			}
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			executor.shutdownNow(); // Cancel currently executing tasks
 		}
 
 		// Sort best to worst, order is reverse when packing to a single bin

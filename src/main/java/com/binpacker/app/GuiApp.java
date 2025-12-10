@@ -11,6 +11,7 @@ import com.binpacker.lib.solver.FirstFit3D;
 import com.binpacker.lib.solver.SolverInterface;
 import com.binpacker.lib.solver.common.SolverProperties;
 import com.binpacker.lib.solver.BestFitEMS;
+import com.binpacker.lib.solver.FFEMSOCL;
 import com.binpacker.lib.ocl.OpenCLDevice;
 
 import javafx.application.Application;
@@ -97,6 +98,7 @@ public class GuiApp extends Application {
 	private List<List<com.binpacker.lib.common.Box>> result;
 
 	private ComboBox<SolverInterface> solverComboBox;
+	private ComboBox<OpenCLDevice> openCLDeviceComboBox;
 
 	private int generations = 200;
 	private int population = 30;
@@ -150,6 +152,8 @@ public class GuiApp extends Application {
 					return "3D best fit bsp";
 				} else if (solver instanceof BestFitEMS) {
 					return "Best Fit EMS";
+				} else if (solver instanceof FFEMSOCL) {
+					return "FFEMS OpenCL";
 				}
 				return solver.getClass().getSimpleName(); // Fallback
 			}
@@ -160,7 +164,8 @@ public class GuiApp extends Application {
 				return null;
 			}
 		});
-		this.solverComboBox.getItems().addAll(new FirstFit3D(), new FirstFit2D(), new BestFit3D(), new BestFitEMS());
+		this.solverComboBox.getItems().addAll(new FirstFit3D(), new FirstFit2D(), new BestFit3D(), new BestFitEMS(),
+				new FFEMSOCL());
 		this.solverComboBox.setValue(this.solverComboBox.getItems().get(0)); // Set default to the first item
 
 		Button solveButton = new Button("Solve");
@@ -237,9 +242,9 @@ public class GuiApp extends Application {
 		Label openCLDeviceLabel = new Label("OpenCL Device:");
 		HBox openCLDeviceHBox = new javafx.scene.layout.HBox(10); // 10 is spacing
 		openCLDeviceHBox.setAlignment(Pos.CENTER_LEFT);
-		ComboBox<OpenCLDevice> openCLDeviceComboBox = new ComboBox<>();
-		openCLDeviceComboBox.getItems().addAll(devices);
-		openCLDeviceComboBox.setConverter(new javafx.util.StringConverter<OpenCLDevice>() {
+		this.openCLDeviceComboBox = new ComboBox<>();
+		this.openCLDeviceComboBox.getItems().addAll(devices);
+		this.openCLDeviceComboBox.setConverter(new javafx.util.StringConverter<OpenCLDevice>() {
 			@Override
 			public String toString(OpenCLDevice device) {
 
@@ -254,11 +259,11 @@ public class GuiApp extends Application {
 			}
 		});
 		if (!devices.isEmpty()) {
-			openCLDeviceComboBox.setValue(devices.get(0));
+			this.openCLDeviceComboBox.setValue(devices.get(0));
 		}
 		Button testButton = new Button("Test");
 		testButton.setOnAction(e -> {
-			OpenCLDevice device = openCLDeviceComboBox.getValue();
+			OpenCLDevice device = this.openCLDeviceComboBox.getValue();
 			if (device != null) {
 				boolean result = JOCLHelper.testOpenCLDevice(device);
 				JOCLHelper.runSample(device.platformIndex, device.deviceIndex);
@@ -272,7 +277,7 @@ public class GuiApp extends Application {
 			}
 		});
 
-		openCLDeviceHBox.getChildren().addAll(openCLDeviceComboBox, testButton);
+		openCLDeviceHBox.getChildren().addAll(this.openCLDeviceComboBox, testButton);
 		controls.getChildren().add(openCLDeviceLabel);
 		controls.getChildren().add(openCLDeviceHBox);
 
@@ -389,9 +394,14 @@ public class GuiApp extends Application {
 		SolverInterface solver = solverComboBox.getValue();
 		Optimizer optimizer = new GAOptimizer();
 
-		SolverProperties properties = new SolverProperties(bin, growingBin, axis);
+		SolverProperties properties = new SolverProperties(bin, growingBin, axis, openCLDeviceComboBox.getValue());
 		solver.init(properties);
-		optimizer.initialize(solver, boxes, bin, growingBin, axis, this.population, this.eliteCount);
+
+		boolean threaded = true;
+		if (solverComboBox.getValue() instanceof FFEMSOCL) {
+			threaded = false;
+		}
+		optimizer.initialize(solver, boxes, bin, growingBin, axis, this.population, this.eliteCount, threaded);
 
 		Random random = new Random();
 		List<Color> boxColors = new ArrayList<>();
