@@ -8,6 +8,13 @@ import com.binpacker.lib.common.Point3f;
 import com.binpacker.lib.common.Space;
 
 public class PlacementUtils {
+
+	public static void unorderedRemoveSpace(Bin bin, int spaceIndex) {
+		int lastIndex = bin.freeSpaces.size() - 1;
+		bin.freeSpaces.set(spaceIndex, bin.freeSpaces.get(lastIndex));
+		bin.freeSpaces.removeLast();
+	}
+
 	public static Box findFit(Box box, Space space) {
 		// Check all 6 orientations (permutations of x, y, z)
 
@@ -82,7 +89,7 @@ public class PlacementUtils {
 				new Point3f(box.size.x, box.size.y, box.size.z));
 		bin.boxes.add(placedBox);
 
-		bin.freeSpaces.remove(spaceIndex);
+		unorderedRemoveSpace(bin, spaceIndex);
 
 		Space right = new Space(space.x + box.size.x, space.y, space.z,
 				space.w - box.size.x, space.h, space.d);
@@ -104,13 +111,45 @@ public class PlacementUtils {
 
 	}
 
+	public static List<Space> placeBoxEMSAndReturnNewSpaces(Box box, Bin bin, int spaceIndex) {
+		Space space = bin.freeSpaces.get(spaceIndex);
+
+		Box placedBox = new Box(
+				box.id,
+				new Point3f(space.x, space.y, space.z),
+				new Point3f(box.size.x, box.size.y, box.size.z));
+		bin.boxes.add(placedBox);
+
+		unorderedRemoveSpace(bin, spaceIndex);
+
+		List<Space> newFreeSpaces = new java.util.ArrayList<>();
+
+		Space right = new Space(space.x + box.size.x, space.y, space.z,
+				space.w - box.size.x, space.h, space.d);
+
+		Space top = new Space(space.x, space.y + box.size.y, space.z,
+				space.w, space.h - box.size.y, space.d);
+
+		Space front = new Space(space.x, space.y, space.z + box.size.z,
+				space.w, space.h, space.d - box.size.z);
+
+		if (right.w > 0 && right.h > 0 && right.d > 0)
+			newFreeSpaces.add(right);
+		if (top.w > 0 && top.h > 0 && top.d > 0)
+			newFreeSpaces.add(top);
+		if (front.w > 0 && front.h > 0 && front.d > 0)
+			newFreeSpaces.add(front);
+
+		return newFreeSpaces;
+	}
+
 	public static void pruneCollidingSpacesEMS(Box box, Bin bin) {
 		// can ignore 4 first ones, since those are created around the latest box
 		// placement
 		for (int i = bin.freeSpaces.size() - 1; i >= 0; i--) {
 			Space space = bin.freeSpaces.get(i);
 			if (box.collidesWith(space)) {
-				bin.freeSpaces.remove(i);
+				unorderedRemoveSpace(bin, i);
 				splitCollidingFreeSpaceEMS(box, space, bin);
 			}
 		}
@@ -199,7 +238,7 @@ public class PlacementUtils {
 			Space space1 = bin.freeSpaces.get(i);
 			// Remove invalid spaces (zero or negative dimensions)
 			if (space1.w <= 0 || space1.h <= 0 || space1.d <= 0) {
-				bin.freeSpaces.remove(i);
+				unorderedRemoveSpace(bin, i);
 				continue;
 			}
 
@@ -223,7 +262,7 @@ public class PlacementUtils {
 			}
 
 			if (isWrapped) {
-				bin.freeSpaces.remove(i);
+				unorderedRemoveSpace(bin, i);
 			}
 		}
 	}
