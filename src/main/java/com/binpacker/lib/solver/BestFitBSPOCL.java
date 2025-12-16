@@ -86,57 +86,6 @@ public class BestFitBSPOCL implements SolverInterface {
 			for (Bin bin : activeBins) {
 				ExtendedPlacement fit = findFit(box, bin);
 				if (fit != null) {
-					// We need the actual score to compare cross-bin if we wanted multi-bin best fit
-					// Since Placement doesn't hold score, we might be simulating 'First Fit Bin'
-					// but 'Best Fit Placement' within bin?
-					// The prompt says "evaluate all placements in a bin". It doesn't explicitly say
-					// "best fit across ALL bins",
-					// but usually BestFit implies that. However, FFBSPOCL iterates bins and breaks
-					// on first fit.
-					// Let's assume Best Fit *within* bin for now, but iterate bins in order (First
-					// Fit Bin Strategy, Best Fit Placement).
-					// If we want Best Fit Bin strategy, we need to track score.
-
-					// Let's stick to: Try to fit in existing bins (in order).
-					// Actually, standard BestFit algorithm usually means: put in the bin with the
-					// best score.
-					// But `FFBSPOCL` stands for "First Fit Binary Space Partition OpenCL".
-					// This new one is `BestFitBSPOCL`. So it should probably select the *best* bin
-					// among all open bins.
-					// However, for simplicity and matching the exact request "evaluate all
-					// placements in A BIN",
-					// and usually bin packing keeps open bins to a minimum or just one 'active' bin
-					// + others.
-					// Let's sweep all active bins and pick the absolute best score.
-
-					// To do that, I need to know the score.
-					// I'll assume findFit returns the best placement within that bin.
-					// But I need to modify findFit or Placement to return score to compare across
-					// bins.
-					// Or, I can just do First Fit Bin (find first bin that accommodates, pick best
-					// spot in it).
-					// The prompt says: "evaluate all placements in a bin, and select the one with
-					// the lowest score".
-					// This implies Best Fit Placement within a bin.
-					// For bin selection strategy, standard behavior for "Best Fit" usually applies
-					// to the Bin selection too.
-					// But if we have potentially infinite bins, we usually check existing bins,
-					// find best, if none fit, new bin.
-
-					// I will implement: Check ALL active bins, find best score. If valid, place
-					// there. Else new bin.
-
-					// Wait, I can't easily get the score out of 'findFit' without modifying
-					// Placement class or returning a Pair.
-					// Let's augment the Placement class or just return a custom object locally.
-					// Actually, let's keep it simple: First Fit Bin, Best Fit Space.
-					// "I'd like for you to create a file ... that evaluates all placements in a
-					// bin, and select the one with the lowest score"
-					// This strictly speaks about placement selection within a bin.
-					// I will stick to "First Fit Bin" strategy (iterate bins, if it fits in bin i,
-					// place it there using best fit strategy, and stop).
-					// This effectively makes it "First Fit Bin, Best Fit Descent" or similar.
-
 					placeBoxGPU(box, bin, fit.spaceIndex, fit.rotationIndex);
 					placed = true;
 					break;
