@@ -406,7 +406,7 @@ public class GuiApp extends Application {
 		statusLabel.setText("Solving...");
 
 		// Generate Data
-		List<com.binpacker.lib.common.Box> boxes = generateRandomBoxes(30);
+		List<com.binpacker.lib.common.Box> boxes = generateRandomBoxes(200);
 		com.binpacker.lib.common.Bin bin = new com.binpacker.lib.common.Bin(0, binWidthField.getValue(),
 				binHeightField.getValue(), binDepthField.getValue());
 		// Solve
@@ -427,11 +427,6 @@ public class GuiApp extends Application {
 			SolverInterface solver = (SolverInterface) selectedSolver;
 
 			boolean threaded = true;
-			if (solver instanceof FFBSPOCL
-					|| solver instanceof BestFitBSPOCL
-					|| solver instanceof BestFitEMSOCL) {
-				threaded = true;
-			}
 
 			Class<? extends SolverInterface> solverClass = solver.getClass();
 			java.util.function.Supplier<SolverInterface> factory = () -> {

@@ -102,24 +102,28 @@ public class GPUSolver implements ParallelSolverInterface {
 
 		// 4. Run kernel
 		long[] globalWorkSize = new long[] { numOrders };
-		clEnqueueNDRangeKernel(ocl.clQueue, kernel, 1, null, globalWorkSize,
+		Integer ok = clEnqueueNDRangeKernel(ocl.clQueue, kernel, 1, null, globalWorkSize,
 				null, 0, null, null);
+		if (ok != CL_SUCCESS) {
+			System.err.println("Failed to run kernel");
+			System.exit(1);
+		}
 
 		// 5. Read results
 		float[] scores = new float[numOrders];
 		clEnqueueReadBuffer(ocl.clQueue, scoresMem, CL_TRUE, 0,
 				Sizeof.cl_float * numOrders, Pointer.to(scores), 0, null, null);
 
-		// 6. Cleanup memory
-		clReleaseMemObject(boxesMem);
-		clReleaseMemObject(ordersMem);
-		clReleaseMemObject(scoresMem);
-
-		// 7. Convert results
+		// 6. Convert results
 		List<Integer> resultList = new ArrayList<>(numOrders);
 		for (float score : scores) {
 			resultList.add((int) score);
 		}
+
+		// 7. Cleanup memory
+		clReleaseMemObject(boxesMem);
+		clReleaseMemObject(ordersMem);
+		clReleaseMemObject(scoresMem);
 
 		return resultList;
 	}

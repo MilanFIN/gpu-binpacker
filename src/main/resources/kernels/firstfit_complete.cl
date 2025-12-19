@@ -71,6 +71,16 @@ __kernel void guillotine_first_fit(
         Box box = boxes[box_id];
 
         int placed = 0;
+        
+        // Define all 6 orientations
+        float orientations[6][3] = {
+            {box.w, box.h, box.d},  // 0: original
+            {box.w, box.d, box.h},  // 1: rotate around x
+            {box.h, box.w, box.d},  // 2: rotate around z
+            {box.h, box.d, box.w},  // 3: rotate around y
+            {box.d, box.w, box.h},  // 4: diagonal 1
+            {box.d, box.h, box.w}   // 5: diagonal 2
+        };
 
         // First-fit over bins
         for (int b = 0; b < bins_used && !placed; b++) {
@@ -81,76 +91,85 @@ __kernel void guillotine_first_fit(
 
                 Space sp = spaces[base + s];
 
-                // Fit test
-                if (box.w <= sp.w &&
-                    box.h <= sp.h &&
-                    box.d <= sp.d) {
+                // Try all orientations, use first fitting
+                for (int o = 0; o < 6; o++) {
+                    float w = orientations[o][0];
+                    float h = orientations[o][1];
+                    float d = orientations[o][2];
 
-                    placed = 1;
+                    // Fit test
+                    if (w <= sp.w && h <= sp.h && d <= sp.d) {
 
-                    // ----------------------------------
-                    // Account used volume
-                    // ----------------------------------
+                        placed = 1;
 
-                    used_volume[b] += box.w * box.h * box.d;
+                        // ----------------------------------
+                        // Account used volume
+                        // ----------------------------------
 
-                    // ----------------------------------
-                    // Remove used space (swap with last)
-                    // ----------------------------------
+                        used_volume[b] += w * h * d;
 
-                    space_count[b]--;
-                    spaces[base + s] =
-                        spaces[base + space_count[b]];
+                        // ----------------------------------
+                        // Remove used space (swap with last)
+                        // ----------------------------------
 
-                    // ----------------------------------
-                    // Guillotine splits
-                    // ----------------------------------
+                        space_count[b]--;
+                        spaces[base + s] =
+                            spaces[base + space_count[b]];
 
-                    if (space_count[b] + 3 > MAX_SPACES_PER_BIN) {
-                        scores[gid] = -1.0f;
-                        return;
+                        // ----------------------------------
+                        // Guillotine splits
+                        // ----------------------------------
+
+                        if (space_count[b] + 3 > MAX_SPACES_PER_BIN) {
+                            scores[gid] = -1.0f;
+                            return;
+                        }
+
+                        // Right space
+                        if (sp.w - w > 0.0f) {
+                            spaces[base + space_count[b]++] = (Space){
+                                sp.x + w,
+                                sp.y,
+                                sp.z,
+                                sp.w - w,
+                                sp.h,
+                                sp.d
+                            };
+                        }
+
+                        // Top space
+                        if (sp.h - h > 0.0f) {
+                            spaces[base + space_count[b]++] = (Space){
+                                sp.x,
+                                sp.y + h,
+                                sp.z,
+                                w,
+                                sp.h - h,
+                                sp.d
+                            };
+                        }
+
+                        // Front space
+                        if (sp.d - d > 0.0f) {
+                            spaces[base + space_count[b]++] = (Space){
+                                sp.x,
+                                sp.y,
+                                sp.z + d,
+                                w,
+                                h,
+                                sp.d - d
+                            };
+                        }
+
+                        break; // Break orientation loop - found a fit
                     }
-
-                    // Right space
-                    if (sp.w - box.w > 0.0f) {
-                        spaces[base + space_count[b]++] = (Space){
-                            sp.x + box.w,
-                            sp.y,
-                            sp.z,
-                            sp.w - box.w,
-                            sp.h,
-                            sp.d
-                        };
-                    }
-
-                    // Top space
-                    if (sp.h - box.h > 0.0f) {
-                        spaces[base + space_count[b]++] = (Space){
-                            sp.x,
-                            sp.y + box.h,
-                            sp.z,
-                            box.w,
-                            sp.h - box.h,
-                            sp.d
-                        };
-                    }
-
-                    // Front space
-                    if (sp.d - box.d > 0.0f) {
-                        spaces[base + space_count[b]++] = (Space){
-                            sp.x,
-                            sp.y,
-                            sp.z + box.d,
-                            box.w,
-                            box.h,
-                            sp.d - box.d
-                        };
-                    }
-
-                    break;
                 }
+            
+                if (placed)
+                    break; // Break space loop
             }
         }
+        
 
         // ----------------------------------
         // Create new bin if needed
@@ -211,5 +230,5 @@ __kernel void guillotine_first_fit(
         score += used_volume[b];
     }
 
-    scores[gid] = score;
+    scores[gid] = score / (bin_w * bin_h * bin_d * bins_used);
 }

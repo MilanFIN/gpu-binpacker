@@ -27,7 +27,17 @@ public class FirstFitReference implements ReferenceSolver {
 
 			boolean placed = false;
 
-			// Try to fit in existing bins
+			// Generate all 6 orientations
+			float[][] orientations = {
+					{ box.size.x, box.size.y, box.size.z }, // original
+					{ box.size.x, box.size.z, box.size.y }, // rotate around x
+					{ box.size.y, box.size.x, box.size.z }, // rotate around z
+					{ box.size.y, box.size.z, box.size.x }, // rotate around y
+					{ box.size.z, box.size.x, box.size.y }, // diagonal 1
+					{ box.size.z, box.size.y, box.size.x } // diagonal 2
+			};
+
+			// Try to fit in existing bins (first-fit)
 			for (Bin bin : activeBins) {
 				List<Space> spaces = bin.freeSpaces;
 
@@ -35,49 +45,60 @@ public class FirstFitReference implements ReferenceSolver {
 				for (int s = 0; s < spaces.size(); s++) {
 					Space sp = spaces.get(s);
 
-					if (box.size.x <= sp.w && box.size.y <= sp.h && box.size.z <= sp.d) {
-						// Fit found!
-						placed = true;
+					// Try all orientations, use first fitting
+					for (int o = 0; o < orientations.length; o++) {
+						float w = orientations[o][0];
+						float h = orientations[o][1];
+						float d = orientations[o][2];
 
-						// Set position
-						box.position.x = sp.x;
-						box.position.y = sp.y;
-						box.position.z = sp.z;
-						bin.boxes.add(box);
+						if (w <= sp.w && h <= sp.h && d <= sp.d) {
+							// Fit found!
+							placed = true;
 
-						// Remove used space (swap with last for efficiency, same as kernel)
-						int lastIdx = spaces.size() - 1;
-						if (s != lastIdx) {
-							spaces.set(s, spaces.get(lastIdx));
-						}
-						spaces.remove(lastIdx);
-						// Note: if we swapped, we must re-evaluate index s if we were continuing,
-						// but here we break immediately after placement, so it's fine.
-						// Wait, the kernel breaks the SPACE loop, next it continues to next BOX.
-						// Since we break the BIN loop too, we are done with this box.
+							// Update box size to reflect chosen orientation
+							box.size.x = w;
+							box.size.y = h;
+							box.size.z = d;
 
-						// Create new spaces (Guillotine Split)
-						// Right
-						if (sp.w - box.size.x > 0) {
-							spaces.add(new Space(
-									sp.x + box.size.x, sp.y, sp.z,
-									sp.w - box.size.x, sp.h, sp.d));
-						}
-						// Top
-						if (sp.h - box.size.y > 0) {
-							spaces.add(new Space(
-									sp.x, sp.y + box.size.y, sp.z,
-									box.size.x, sp.h - box.size.y, sp.d));
-						}
-						// Front
-						if (sp.d - box.size.z > 0) {
-							spaces.add(new Space(
-									sp.x, sp.y, sp.z + box.size.z,
-									box.size.x, box.size.y, sp.d - box.size.z));
-						}
+							// Set position
+							box.position.x = sp.x;
+							box.position.y = sp.y;
+							box.position.z = sp.z;
+							bin.boxes.add(box);
 
-						break; // Break space loop
+							// Remove used space (swap with last for efficiency, same as kernel)
+							int lastIdx = spaces.size() - 1;
+							if (s != lastIdx) {
+								spaces.set(s, spaces.get(lastIdx));
+							}
+							spaces.remove(lastIdx);
+
+							// Create new spaces (Guillotine Split)
+							// Right
+							if (sp.w - w > 0) {
+								spaces.add(new Space(
+										sp.x + w, sp.y, sp.z,
+										sp.w - w, sp.h, sp.d));
+							}
+							// Top
+							if (sp.h - h > 0) {
+								spaces.add(new Space(
+										sp.x, sp.y + h, sp.z,
+										w, sp.h - h, sp.d));
+							}
+							// Front
+							if (sp.d - d > 0) {
+								spaces.add(new Space(
+										sp.x, sp.y, sp.z + d,
+										w, h, sp.d - d));
+							}
+
+							break; // Break orientation loop - found a fit
+						}
 					}
+
+					if (placed)
+						break; // Break space loop
 				}
 
 				if (placed)
