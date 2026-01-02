@@ -274,6 +274,15 @@ __kernel void guillotine_best_fit(
     for (int b = 0; b < bins_used - 1; b++) {
         score += used_volume[b];
     }
+    if (bins_used == 1) {
+        score = used_volume[0];
+    }
+    else {
+        printf("SCORE: %f\n", score);
+        score /= (bins_used - 1) * bin_w * bin_h * bin_d;
+        printf("CORRECTED: %f\n", score);
+    }
+
 
     scores[gid] = score;
 }
