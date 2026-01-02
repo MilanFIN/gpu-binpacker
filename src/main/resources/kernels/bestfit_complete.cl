@@ -238,8 +238,8 @@ __kernel void guillotine_best_fit(
                 spaces[base + space_count[b]++] = (Space){
                     box_w, 0.0f, 0.0f,
                     bin_w - box_w,
-                    box_h,
-                    box_d
+                    bin_h,
+                    bin_d
                 };
             }
 
@@ -258,7 +258,7 @@ __kernel void guillotine_best_fit(
                 spaces[base + space_count[b]++] = (Space){
                     0.0f, 0.0f, box_d,
                     box_w,
-                    box_h,
+                    bin_h,
                     bin_d - box_d
                 };
             }

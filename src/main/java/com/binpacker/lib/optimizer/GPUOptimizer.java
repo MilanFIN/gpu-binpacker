@@ -22,12 +22,12 @@ public class GPUOptimizer extends Optimizer<ParallelSolverInterface> {
 		}
 
 		// Use the GPU solver to get scores for all orders in parallel
-		List<Integer> scores = solverSource.solve(boxes, population);
+		List<Double> scores = solverSource.solve(boxes, population);
 
 		List<Solution> scored = new ArrayList<>();
 		for (int i = 0; i < population.size(); i++) {
 			List<Integer> order = population.get(i);
-			int volumeScore = scores.get(i);
+			double volumeScore = scores.get(i);
 
 			double finalScore = 0;
 
@@ -42,6 +42,8 @@ public class GPUOptimizer extends Optimizer<ParallelSolverInterface> {
 			scored.add(new Solution(order, finalScore, null));
 		}
 
+		System.out.println("GPU scores: " + scored.stream().map(s -> s.score).toList());
+
 		return scored;
 	}
 
@@ -55,7 +57,33 @@ public class GPUOptimizer extends Optimizer<ParallelSolverInterface> {
 			result.add(b.boxes);
 		}
 
+		if (result.size() > 1) {
+			double totalVolume = result.subList(0, result.size() - 1).stream()
+					.flatMap(List::stream)
+					.mapToDouble(Box::getVolume)
+					.sum();
+			System.out.println("Total volume used besides last bin: " + totalVolume);
+		}
+
+		// double firstBinVolume = result.get(0).stream()
+		// .mapToDouble(Box::getVolume)
+		// .sum();
+		// System.out.println("CPU bin 0: " + firstBinVolume);
+
+		// double secondBinVolume = result.get(1).stream()
+		// .mapToDouble(Box::getVolume)
+		// .sum();
+		// System.out.println("CPU bin 1: " + secondBinVolume);
+
+		// double thirdBinVolume = result.get(2).stream()
+		// .mapToDouble(Box::getVolume)
+		// .sum();
+		// System.out.println("CPU bin 2: " + thirdBinVolume);
+
+		// System.out.println("CPU BINS TOTAL: " + result.size());
+
 		return result;
+
 	}
 
 	@Override

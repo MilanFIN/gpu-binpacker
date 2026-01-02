@@ -56,10 +56,11 @@ public abstract class Optimizer<S> {
 		for (int i = 0; i < boxes.size(); i++)
 			base.add(i);
 
-		// First order: growing by volume
+		// // First order: growing by volume
 		List<Integer> growingOrder = new ArrayList<>(base);
 		Collections.sort(growingOrder,
-				(i1, i2) -> Double.compare(boxes.get(i1).getVolume(), boxes.get(i2).getVolume()));
+				(i1, i2) -> Double.compare(boxes.get(i1).getVolume(),
+						boxes.get(i2).getVolume()));
 		boxOrders.add(growingOrder);
 
 		// Second order: shrinking by volume
@@ -74,6 +75,8 @@ public abstract class Optimizer<S> {
 			Collections.shuffle(order, random);
 			boxOrders.add(order);
 		}
+
+		this.populationSize = boxOrders.size();
 	}
 
 	// ---- Main GA Logic ----

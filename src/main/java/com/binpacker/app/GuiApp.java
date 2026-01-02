@@ -406,7 +406,7 @@ public class GuiApp extends Application {
 		statusLabel.setText("Solving...");
 
 		// Generate Data
-		List<com.binpacker.lib.common.Box> boxes = generateRandomBoxes(500);
+		List<com.binpacker.lib.common.Box> boxes = generateRandomBoxes(100);
 		com.binpacker.lib.common.Bin bin = new com.binpacker.lib.common.Bin(0, binWidthField.getValue(),
 				binHeightField.getValue(), binDepthField.getValue());
 		// Solve
@@ -547,17 +547,33 @@ public class GuiApp extends Application {
 	}
 
 	private List<com.binpacker.lib.common.Box> generateRandomBoxes(int count) {
+
 		List<com.binpacker.lib.common.Box> boxes = new ArrayList<>();
-		Random random = new Random();
+		Random random = new Random(42); // Fixed seed for deterministic results
 		for (int i = 0; i < count; i++) {
 			float width = random.nextInt(8) + 4;
 			float height = random.nextInt(8) + 4;
 			float depth = random.nextInt(8) + 4;
-			com.binpacker.lib.common.Box box = new com.binpacker.lib.common.Box(new Point3f(0, 0, 0),
-					new Point3f(width, height, depth));
+			com.binpacker.lib.common.Box box = new com.binpacker.lib.common.Box(
+					new com.binpacker.lib.common.Point3f(0, 0, 0),
+					new com.binpacker.lib.common.Point3f(width, height, depth));
 			box.id = i;
 			boxes.add(box);
 		}
 		return boxes;
+
+		// List<com.binpacker.lib.common.Box> boxes = new ArrayList<>();
+		// Random random = new Random();
+		// for (int i = 0; i < count; i++) {
+		// float width = random.nextInt(8) + 4;
+		// float height = random.nextInt(8) + 4;
+		// float depth = random.nextInt(8) + 4;
+		// com.binpacker.lib.common.Box box = new com.binpacker.lib.common.Box(new
+		// Point3f(0, 0, 0),
+		// new Point3f(width, height, depth));
+		// box.id = i;
+		// boxes.add(box);
+		// }
+		// return boxes;
 	}
 }

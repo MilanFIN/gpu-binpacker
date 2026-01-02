@@ -2,8 +2,8 @@
 // Configuration (tune these)
 // ===============================
 
-#define MAX_BINS 32
-#define MAX_SPACES_PER_BIN 64
+#define MAX_BINS 8
+#define MAX_SPACES_PER_BIN 512
 
 // ===============================
 // Data structures
@@ -70,6 +70,9 @@ __kernel void guillotine_first_fit(
         int box_id = orders[gid * num_boxes + i];
         Box box = boxes[box_id];
 
+        // printf("Box: %d, dimensions: %.1f x %.1f x %.1f\n", box_id, box.w, box.h, box.d);
+
+
         int placed = 0;
         
         // Define all 6 orientations
@@ -99,6 +102,7 @@ __kernel void guillotine_first_fit(
 
                     // Fit test
                     if (w <= sp.w && h <= sp.h && d <= sp.d) {
+                        // printf("Placed box in bin: %d\n", b);
 
                         placed = 1;
 
@@ -122,6 +126,7 @@ __kernel void guillotine_first_fit(
 
                         if (space_count[b] + 3 > MAX_SPACES_PER_BIN) {
                             scores[gid] = -1.0f;
+                            printf("Overflow with spaces\n");
                             return;
                         }
 
@@ -168,8 +173,11 @@ __kernel void guillotine_first_fit(
                 if (placed)
                     break; // Break space loop
             }
+            if (placed)
+                break; // Bin loop
         }
         
+
 
         // ----------------------------------
         // Create new bin if needed
@@ -177,46 +185,64 @@ __kernel void guillotine_first_fit(
 
         if (!placed) {
 
+
             if (bins_used >= MAX_BINS) {
                 scores[gid] = -1.0f;
+                printf("Overflow with bins\n");
                 return;
             }
 
-            int b = bins_used++;
+            int b = bins_used;
             int base = b * MAX_SPACES_PER_BIN;
 
             used_volume[b] = box.w * box.h * box.d;
+            // used_volume[b] = 0;
+
             space_count[b] = 0;
+
+            spaces[base + space_count[b]] = (Space) {
+                0,0,0,
+                bin_w, bin_h, bin_d
+            };
+            // printf("new bin at box: %d\n", i);
+
+            // space_count[b]++;
+            // i--;
+            bins_used++;
 
             // Right
             if (bin_w - box.w > 0.0f) {
-                spaces[base + space_count[b]++] = (Space){
+                spaces[base + space_count[b]] = (Space){
                     box.w, 0.0f, 0.0f,
                     bin_w - box.w,
-                    box.h,
-                    box.d
+                    bin_h,
+                    bin_d
                 };
+                space_count[b]++;
             }
 
             // Top
             if (bin_h - box.h > 0.0f) {
-                spaces[base + space_count[b]++] = (Space){
+                spaces[base + space_count[b]] = (Space){
                     0.0f, box.h, 0.0f,
                     box.w,
                     bin_h - box.h,
-                    box.d
+                    bin_d
                 };
+                space_count[b]++;
             }
 
             // Front
             if (bin_d - box.d > 0.0f) {
-                spaces[base + space_count[b]++] = (Space){
+                spaces[base + space_count[b]] = (Space){
                     0.0f, 0.0f, box.d,
                     box.w,
                     box.h,
                     bin_d - box.d
                 };
+                space_count[b]++;
             }
+
         }
     }
 
@@ -229,6 +255,20 @@ __kernel void guillotine_first_fit(
     for (int b = 0; b < bins_used - 1; b++) {
         score += used_volume[b];
     }
+    if (bins_used == 1) {
+        score = used_volume[0];
+    }
+    else {
+        printf("SCORE: %f\n", score);
+        score /= (bins_used - 1) * bin_w * bin_h * bin_d;
+        printf("CORRECTED: %f\n", score);
+    }
 
-    scores[gid] = score / (bin_w * bin_h * bin_d * bins_used);
+    printf("GPU BIN: %d, used volume: %f, spaces: %d\n", 0, used_volume[0], space_count[0]);
+    printf("GPU BIN: %d, used volume: %f, spaces: %d\n", 1, used_volume[1], space_count[1]);
+    printf("GPU BIN: %d, used volume: %f, spaces: %d\n", 2, used_volume[2], space_count[2]);
+
+    printf("GPU BINS TOTAL: %d\n", bins_used);
+
+    scores[gid] = score;
 }

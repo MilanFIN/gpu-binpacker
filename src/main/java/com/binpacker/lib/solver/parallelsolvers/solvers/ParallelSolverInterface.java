@@ -9,7 +9,7 @@ public interface ParallelSolverInterface {
 
 	void init(SolverProperties properties);
 
-	List<Integer> solve(List<Box> boxes, List<List<Integer>> orders);
+	List<Double> solve(List<Box> boxes, List<List<Integer>> orders);
 
 	void release();
 

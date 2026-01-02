@@ -19,13 +19,18 @@ public class FirstFitReference implements ReferenceSolver {
 		activeBins.add(new Bin(0, binTemplate.w, binTemplate.h, binTemplate.d));
 
 		// Iterate through boxes in the given order
-		for (int boxIndex : order) {
-			Box originalBox = boxes.get(boxIndex);
+		for (int boxIndex = 0; boxIndex < boxes.size(); boxIndex++) {
+			Box originalBox = boxes.get(order.get(boxIndex));
 			// Create a copy of the box to store placement
 			Box box = new Box(originalBox.id, new Point3f(0, 0, 0),
 					new Point3f(originalBox.size.x, originalBox.size.y, originalBox.size.z));
 
 			boolean placed = false;
+
+			// System.out.println(
+			// "Box: " + order.get(boxIndex) + " dimensions: " + box.size.x + " x " +
+			// box.size.y + " x "
+			// + box.size.z);
 
 			// Generate all 6 orientations
 			float[][] orientations = {
@@ -46,12 +51,13 @@ public class FirstFitReference implements ReferenceSolver {
 					Space sp = spaces.get(s);
 
 					// Try all orientations, use first fitting
-					for (int o = 0; o < orientations.length; o++) {
+					for (int o = 0; o < 6; o++) {
 						float w = orientations[o][0];
 						float h = orientations[o][1];
 						float d = orientations[o][2];
 
 						if (w <= sp.w && h <= sp.h && d <= sp.d) {
+							// System.out.println("Placed box in bin: " + bin.index);
 							// Fit found!
 							placed = true;
 
@@ -75,19 +81,19 @@ public class FirstFitReference implements ReferenceSolver {
 
 							// Create new spaces (Guillotine Split)
 							// Right
-							if (sp.w - w > 0) {
+							if (sp.w - w > 0f) {
 								spaces.add(new Space(
 										sp.x + w, sp.y, sp.z,
 										sp.w - w, sp.h, sp.d));
 							}
 							// Top
-							if (sp.h - h > 0) {
+							if (sp.h - h > 0f) {
 								spaces.add(new Space(
 										sp.x, sp.y + h, sp.z,
 										w, sp.h - h, sp.d));
 							}
 							// Front
-							if (sp.d - d > 0) {
+							if (sp.d - d > 0f) {
 								spaces.add(new Space(
 										sp.x, sp.y, sp.z + d,
 										w, h, sp.d - d));
@@ -107,16 +113,11 @@ public class FirstFitReference implements ReferenceSolver {
 
 			// If not placed, create new bin
 			if (!placed) {
+				// System.out.println("new bin at box: " + boxIndex);
 				Bin newBin = new Bin(activeBins.size(), binTemplate.w, binTemplate.h, binTemplate.d);
 				activeBins.add(newBin);
 
-				// We know it fits in empty bin (assuming box <= bin dimensions)
-				// But to be consistent with kernel logic, we add the initial space and then
-				// "find" it.
-				// However, we can just place it directly to save a step if we trust logic,
-				// but let's strictly follow the "try to fit" pattern or just manual placement
-				// logic
-				// to ensure exact same split behavior.
+				// boxIndex--;
 
 				Space sp = newBin.freeSpaces.get(0); // The single initial space
 
@@ -129,27 +130,29 @@ public class FirstFitReference implements ReferenceSolver {
 					newBin.freeSpaces.remove(0);
 
 					// Right
-					if (sp.w - box.size.x > 0) {
+					if (newBin.w - box.size.x > 0.0f) {
 						newBin.freeSpaces.add(new Space(
-								sp.x + box.size.x, sp.y, sp.z,
+								box.size.x, 0, 0,
 								sp.w - box.size.x, sp.h, sp.d));
 					}
 					// Top
-					if (sp.h - box.size.y > 0) {
+					if (newBin.h - box.size.y > 0.0f) {
 						newBin.freeSpaces.add(new Space(
-								sp.x, sp.y + box.size.y, sp.z,
+								0, box.size.y, 0,
 								box.size.x, sp.h - box.size.y, sp.d));
 					}
 					// Front
-					if (sp.d - box.size.z > 0) {
+					if (newBin.d - box.size.z > 0.0f) {
 						newBin.freeSpaces.add(new Space(
-								sp.x, sp.y, sp.z + box.size.z,
+								0, 0, box.size.z,
 								box.size.x, box.size.y, sp.d - box.size.z));
 					}
+
 				} else {
 					// Should not happen if box fits in bin template
 					System.err.println("Box " + box.id + " too large for bin template!");
 				}
+
 			}
 		}
 

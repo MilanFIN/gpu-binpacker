@@ -51,7 +51,7 @@ public class GPUSolver implements ParallelSolverInterface {
 	}
 
 	@Override
-	public List<Integer> solve(List<Box> boxes, List<List<Integer>> orders) {
+	public List<Double> solve(List<Box> boxes, List<List<Integer>> orders) {
 		int numBoxes = boxes.size();
 		int numOrders = orders.size();
 
@@ -115,9 +115,9 @@ public class GPUSolver implements ParallelSolverInterface {
 				Sizeof.cl_float * numOrders, Pointer.to(scores), 0, null, null);
 
 		// 6. Convert results
-		List<Integer> resultList = new ArrayList<>(numOrders);
+		List<Double> resultList = new ArrayList<>(numOrders);
 		for (float score : scores) {
-			resultList.add((int) score);
+			resultList.add((double) score);
 		}
 
 		// 7. Cleanup memory
