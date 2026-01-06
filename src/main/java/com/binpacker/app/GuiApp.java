@@ -18,6 +18,7 @@ import com.binpacker.lib.solver.parallelsolvers.solvers.GPUSolver;
 import com.binpacker.lib.solver.parallelsolvers.solvers.ParallelSolverInterface;
 import com.binpacker.lib.solver.parallelsolvers.solvers.FirstFitReference;
 import com.binpacker.lib.solver.parallelsolvers.solvers.BestFitReference;
+import com.binpacker.lib.solver.parallelsolvers.solvers.BestFitEMSReference;
 import com.binpacker.lib.optimizer.CPUOptimizer;
 import com.binpacker.lib.optimizer.GPUOptimizer;
 import com.binpacker.lib.ocl.OpenCLDevice;
@@ -184,7 +185,9 @@ public class GuiApp extends Application {
 				new GPUSolver("firstfit_complete.cl", "guillotine_first_fit", "FirstFit GPU (Parallel)",
 						new FirstFitReference()),
 				new GPUSolver("bestfit_complete.cl", "guillotine_best_fit", "BestFit GPU (Parallel)",
-						new BestFitReference()));
+						new BestFitReference()),
+				new GPUSolver("bestfit_ems.cl", "best_fit_ems", "BestFit EMS GPU (Parallel)",
+						new BestFitEMSReference()));
 		this.solverComboBox.setValue(this.solverComboBox.getItems().get(0)); // Set default to the first item
 
 		Button solveButton = new Button("Solve");
@@ -406,7 +409,7 @@ public class GuiApp extends Application {
 		statusLabel.setText("Solving...");
 
 		// Generate Data
-		List<com.binpacker.lib.common.Box> boxes = generateRandomBoxes(100);
+		List<com.binpacker.lib.common.Box> boxes = generateRandomBoxes(300);
 		com.binpacker.lib.common.Bin bin = new com.binpacker.lib.common.Bin(0, binWidthField.getValue(),
 				binHeightField.getValue(), binDepthField.getValue());
 		// Solve
@@ -562,18 +565,5 @@ public class GuiApp extends Application {
 		}
 		return boxes;
 
-		// List<com.binpacker.lib.common.Box> boxes = new ArrayList<>();
-		// Random random = new Random();
-		// for (int i = 0; i < count; i++) {
-		// float width = random.nextInt(8) + 4;
-		// float height = random.nextInt(8) + 4;
-		// float depth = random.nextInt(8) + 4;
-		// com.binpacker.lib.common.Box box = new com.binpacker.lib.common.Box(new
-		// Point3f(0, 0, 0),
-		// new Point3f(width, height, depth));
-		// box.id = i;
-		// boxes.add(box);
-		// }
-		// return boxes;
 	}
 }
