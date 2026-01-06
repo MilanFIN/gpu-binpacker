@@ -2,8 +2,8 @@
 // Configuration (tune these)
 // ===============================
 
-#define MAX_BINS 8
-#define MAX_SPACES_PER_BIN 512
+#define MAX_BINS {{MAX_BINS}} // default 64
+#define MAX_SPACES_PER_BIN {{MAX_SPACES_PER_BIN}} // default 512
 
 // ===============================
 // Data structures

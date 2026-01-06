@@ -182,11 +182,11 @@ public class GuiApp extends Application {
 		});
 		this.solverComboBox.getItems().addAll(new FirstFit3D(), new FirstFit2D(), new BestFit3D(), new BestFitEMS(),
 				new FFBSPOCL(), new BestFitBSPOCL(), new BestFitEMSOCL(),
-				new GPUSolver("firstfit_complete.cl", "guillotine_first_fit", "FirstFit GPU (Parallel)",
+				new GPUSolver("firstfit_complete.cl.template", "guillotine_first_fit", "FirstFit GPU (Parallel)",
 						new FirstFitReference()),
-				new GPUSolver("bestfit_complete.cl", "guillotine_best_fit", "BestFit GPU (Parallel)",
+				new GPUSolver("bestfit_complete.cl.template", "guillotine_best_fit", "BestFit GPU (Parallel)",
 						new BestFitReference()),
-				new GPUSolver("bestfit_ems.cl", "best_fit_ems", "BestFit EMS GPU (Parallel)",
+				new GPUSolver("bestfit_ems.cl.template", "best_fit_ems", "BestFit EMS GPU (Parallel)",
 						new BestFitEMSReference()));
 		this.solverComboBox.setValue(this.solverComboBox.getItems().get(0)); // Set default to the first item
 

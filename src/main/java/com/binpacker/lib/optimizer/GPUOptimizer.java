@@ -21,6 +21,54 @@ public class GPUOptimizer extends Optimizer<ParallelSolverInterface> {
 			referenceSolver = ((GPUSolver) solverSource).getReferenceSolver();
 		}
 
+		// Configure and compile kernel if needed (Template support)
+		if (solverSource instanceof GPUSolver) {
+			GPUSolver gpuSolver = (GPUSolver) solverSource;
+
+			if (gpuSolver.isTemplate() && !gpuSolver.isCompiled()) {
+				// Estimate needed resources using ReferenceSolver
+				if (referenceSolver != null) {
+					// Create a dummy identity order
+					List<Integer> identityOrder = new ArrayList<>();
+					for (int i = 0; i < boxes.size(); i++) {
+						identityOrder.add(i);
+					}
+
+					// Deep copy boxes to avoid side effects
+					List<Box> testBoxes = new ArrayList<>();
+					for (Box b : boxes) {
+						testBoxes.add(new Box(b.id, new com.binpacker.lib.common.Point3f(0, 0, 0),
+								new com.binpacker.lib.common.Point3f(b.size.x, b.size.y, b.size.z)));
+					}
+
+					List<Bin> solved = referenceSolver.solve(testBoxes, identityOrder, bin);
+
+					int maxBins = solved.size() * 2;
+					// Ensure at least some bins
+					if (maxBins < 64)
+						maxBins = 64;
+
+					int maxSpaces = 0;
+					for (Bin b : solved) {
+						if (b.freeSpaces.size() > maxSpaces) {
+							maxSpaces = b.freeSpaces.size();
+						}
+					}
+					// Double it for safety, ensure minimum
+					maxSpaces = (maxSpaces == 0 ? 512 : maxSpaces * 2);
+					if (maxSpaces < 512)
+						maxSpaces = 512;
+
+					System.out.println(
+							"Configuring Kernel with MAX_BINS=" + maxBins + ", MAX_SPACES_PER_BIN=" + maxSpaces);
+					gpuSolver.compileKernel(maxBins, maxSpaces);
+				} else {
+					// Fallback defaults if no reference solver
+					gpuSolver.compileKernel(64, 512);
+				}
+			}
+		}
+
 		// Use the GPU solver to get scores for all orders in parallel
 		List<Double> scores = solverSource.solve(boxes, population);
 

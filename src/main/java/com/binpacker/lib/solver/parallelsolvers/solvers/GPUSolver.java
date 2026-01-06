@@ -11,6 +11,7 @@ import com.binpacker.lib.common.Box;
 import com.binpacker.lib.ocl.KernelUtils;
 import com.binpacker.lib.solver.common.SolverProperties;
 import com.binpacker.lib.solver.common.ocl.OCLCommon;
+import com.binpacker.lib.ocl.OpenCLDevice;
 
 public class GPUSolver implements ParallelSolverInterface {
 
@@ -40,15 +41,42 @@ public class GPUSolver implements ParallelSolverInterface {
 		return referenceSolver;
 	}
 
+	public boolean isTemplate() {
+		return kernelFileName.endsWith(".template");
+	}
+
+	public boolean isCompiled() {
+		return kernel != null;
+	}
+
+	public void compileKernel(int maxBins, int maxSpaces) {
+		if (kernel != null)
+			return; // Already compiled
+
+		String source = kernelSource
+				.replace("{{MAX_BINS}}", String.valueOf(maxBins))
+				.replace("{{MAX_SPACES_PER_BIN}}", String.valueOf(maxSpaces));
+
+		// Initialize OpenCL
+		ocl.init(source, devicePreference);
+		kernel = clCreateKernel(ocl.clProgram, kernelFunctionName, null);
+	}
+
 	@Override
 	public void init(SolverProperties properties) {
 		this.binTemplate = properties.bin;
+		this.devicePreference = properties.openCLDevice; // Store for later
 		this.kernelSource = KernelUtils.loadKernelSource(kernelFileName);
 
-		// Initialize OpenCL
-		ocl.init(kernelSource, properties.openCLDevice);
-		kernel = clCreateKernel(ocl.clProgram, kernelFunctionName, null);
+		if (!isTemplate()) {
+			// Initialize OpenCL immediately if not a template
+			ocl.init(kernelSource, properties.openCLDevice);
+			kernel = clCreateKernel(ocl.clProgram, kernelFunctionName, null);
+		}
 	}
+
+	// Store device preference
+	private com.binpacker.lib.ocl.OpenCLDevice devicePreference;
 
 	@Override
 	public List<Double> solve(List<Box> boxes, List<List<Integer>> orders) {
