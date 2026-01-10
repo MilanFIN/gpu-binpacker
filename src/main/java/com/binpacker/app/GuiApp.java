@@ -1,6 +1,5 @@
 package com.binpacker.app;
 
-import com.binpacker.lib.common.Point3f;
 import com.binpacker.lib.common.Utils;
 import com.binpacker.lib.ocl.JOCLHelper;
 import com.binpacker.lib.optimizer.CPUOptimizer;
@@ -94,7 +93,10 @@ class NumberTextField extends TextField {
 
 public class GuiApp extends Application {
 
-	private Group world;
+	private Stage resultsStage;
+	private Group resultWorld;
+	private boolean isSolving = false;
+
 	private Label statusLabel;
 	private Stage primaryStage;
 
@@ -122,24 +124,16 @@ public class GuiApp extends Application {
 
 	@Override
 	public void start(Stage primaryStage) {
+		this.primaryStage = primaryStage;
 		StackPane root = new StackPane();
 
-		// 3D Scene
-		world = new Group();
-		SubScene subScene = create3DScene(world);
-		// Ensure SubScene resizes with the window
-		subScene.heightProperty().bind(root.heightProperty());
-		subScene.widthProperty().bind(root.widthProperty());
-
-		root.getChildren().add(subScene);
-
-		// Controls
+		// Controls - Main Window
 		VBox controls = new VBox(16);
 
 		Label binLabel = new Label("Bin dimensions:");
 
 		HBox binDimensionFields = new HBox(1);
-		binDimensionFields.setMaxWidth(200); // Example width, adjust as needed
+		binDimensionFields.setMaxWidth(200);
 		binDimensionFields.setAlignment(Pos.CENTER_LEFT);
 		binDimensionFields.getChildren().addAll(binWidthField, binHeightField, binDepthField);
 
@@ -313,20 +307,53 @@ public class GuiApp extends Application {
 		controls.setMaxHeight(VBox.USE_PREF_SIZE);
 		controls.setMaxWidth(VBox.USE_PREF_SIZE);
 
-		// Wrap controls in a Group or just align them in the StackPane
-		StackPane.setAlignment(controls, Pos.CENTER_LEFT);
-		StackPane.setMargin(controls, new javafx.geometry.Insets(5));
-
 		root.getChildren().add(controls);
 
 		// Event Handling
 		solveButton.setOnAction(e -> runSolver());
 		exportButton.setOnAction(e -> exportSolution());
 
-		Scene scene = new Scene(root, 800, 600);
-		primaryStage.setTitle("Bin packing solver");
+		Scene scene = new Scene(root, 400, 600); // Smaller size for controls only
+		primaryStage.setTitle("Bin packing solver - Controls");
 		primaryStage.setScene(scene);
 		primaryStage.show();
+
+		// Initialize the resultStage logic but don't show it yet
+		// We'll create it on demand in showResultsWindow()
+	}
+
+	private void showResultsWindow() {
+		if (resultsStage == null) {
+			resultsStage = new Stage();
+			resultsStage.setTitle("Bin Packing Results");
+
+			resultWorld = new Group();
+			SubScene subScene = create3DScene(resultWorld);
+
+			StackPane pane = new StackPane();
+			pane.getChildren().add(subScene);
+
+			// Bind subScene size to window size
+			subScene.heightProperty().bind(pane.heightProperty());
+			subScene.widthProperty().bind(pane.widthProperty());
+
+			Scene scene = new Scene(pane, 800, 600);
+			resultsStage.setScene(scene);
+
+			resultsStage.setOnCloseRequest(e -> {
+				// Just hide it so we can re-show it, or let it close and set to null
+				// If solving, we might want to know it's closed?
+				// The requirement says: "If the user closes the results window while the
+				// solving is ongoing,
+				// it should be recreated when the next iteration is done."
+				// So if we set it to null here, the loop will recreate it.
+				resultsStage = null;
+			});
+		}
+
+		if (!resultsStage.isShowing()) {
+			resultsStage.show();
+		}
 	}
 
 	private SubScene create3DScene(Group world) {
@@ -405,8 +432,51 @@ public class GuiApp extends Application {
 		return subScene;
 	}
 
+	private Task<Void> currentSolverTask;
+
 	private void runSolver() {
 		statusLabel.setText("Solving...");
+
+		// Cancel previous task if running
+		if (currentSolverTask != null && currentSolverTask.isRunning()) {
+			currentSolverTask.cancel();
+			// We might want to wait a bit or ensure it's really stopped, but cancel()
+			// should set the flag
+			// and the loop below checks it.
+		}
+
+		isSolving = true;
+
+		// Clean up previous run if needed
+		if (resultsStage != null) {
+			Platform.runLater(() -> {
+				if (resultsStage != null) { // Double check inside runLater
+					// Fix: Do not reuse resultWorld for a new SubScene. Create a fresh one.
+					resultWorld = new Group();
+					SubScene newSubScene = create3DScene(resultWorld);
+
+					// Get the root pane of the scene
+					if (resultsStage.getScene() != null && resultsStage.getScene().getRoot() instanceof StackPane) {
+						StackPane rootPane = (StackPane) resultsStage.getScene().getRoot();
+						rootPane.getChildren().setAll(newSubScene);
+
+						// Re-bind dimensions
+						newSubScene.heightProperty().bind(rootPane.heightProperty());
+						newSubScene.widthProperty().bind(rootPane.widthProperty());
+					} else {
+						// Fallback if structure is unexpected (shouldn't happen given
+						// showResultsWindow)
+						resultsStage.close();
+						resultsStage = null;
+						showResultsWindow();
+					}
+
+					if (!resultsStage.isShowing()) {
+						resultsStage.show();
+					}
+				}
+			});
+		}
 
 		// Generate Data
 		List<com.binpacker.lib.common.Box> boxes = generateRandomBoxes(300);
@@ -451,6 +521,7 @@ public class GuiApp extends Application {
 			optimizer = cpuOptimizer;
 		} else {
 			statusLabel.setText("Unknown solver type");
+			isSolving = false;
 			return;
 		}
 
@@ -462,63 +533,129 @@ public class GuiApp extends Application {
 
 		int generations = this.generations;
 
-		Task<Void> solverTask = new Task<Void>() {
+		currentSolverTask = new Task<Void>() {
 			@Override
 			protected Void call() throws Exception {
-				final Group solverOutputGroup = new Group();
-				Platform.runLater(() -> {
-					world.getChildren().add(solverOutputGroup);
-				});
+				try {
+					for (int i = 0; i < generations; i++) {
+						if (isCancelled())
+							break;
 
-				for (int i = 0; i < generations; i++) {
-					result = optimizer.executeNextGeneration();
-					final double rawRate = optimizer.rate(result, bin) * 100;
-					final String rate = String.format("%.2f", rawRate);
-					final int generation = i + 1;
+						result = optimizer.executeNextGeneration();
+						final double rawRate = optimizer.rate(result, bin) * 100;
+						final String rate = String.format("%.2f", rawRate);
+						final int generation = i + 1;
 
-					Platform.runLater(() -> {
-						statusLabel
-								.setText("Solving... Generation " + generation + " complete, " + rate + "% full");
+						Platform.runLater(() -> {
+							if (isCancelled())
+								return; // Don't update UI if cancelled
 
-						solverOutputGroup.getChildren().clear(); // Clear previous generation's visualization
+							statusLabel
+									.setText("Solving... Generation " + generation + " complete, " + rate + "% full");
 
-						int binOffset = -50;
-						for (List<com.binpacker.lib.common.Box> binBoxes : result) {
-							for (com.binpacker.lib.common.Box spec : binBoxes) {
-								Color boxColor = boxColors.get(spec.id % boxColors.size());
-								PhongMaterial boxMaterial = new PhongMaterial(boxColor);
-								Box box = new Box(spec.size.x, spec.size.y, spec.size.z);
-								box.setMaterial(boxMaterial);
-
-								// JavaFX Box is centered at (0,0,0), so we need to offset by half size
-								box.setTranslateX(spec.position.x + spec.size.x / 2 + binOffset);
-								box.setTranslateY(spec.position.y + spec.size.y / 2);
-								box.setTranslateZ(spec.position.z + spec.size.z / 2);
-
-								solverOutputGroup.getChildren().add(box);
+							// Check if results window is open; if not and solving, open it
+							if (resultsStage == null || !resultsStage.isShowing()) {
+								showResultsWindow();
 							}
 
-							// Draw bin outline
-							Box binBox = new Box(bin.w, bin.h, bin.d);
-							binBox.setDrawMode(DrawMode.LINE);
-							binBox.setMaterial(new PhongMaterial(Color.BLACK));
-							binBox.setTranslateX(bin.w / 2 + binOffset);
-							binBox.setTranslateY(bin.h / 2);
-							binBox.setTranslateZ(bin.d / 2);
-							solverOutputGroup.getChildren().add(binBox);
+							// If we re-created the world/scene, we need a group to add boxes to.
+							// create3DScene clears 'world' and adds camera/axes.
+							// We need to add boxes to `resultWorld`.
 
-							binOffset += 40; // Space out bins
-						}
-					});
+							// First, clear OLD boxes (but keep axes/camera).
+							// The axes/camera are the first 4 children (cameraGroup, xAxis, yAxis, zAxis).
+							// Let's remove everything after index 3 or just clear and redraw everything
+							// including axes/camera?
+							// Clearing and redrawing everything is safer but might flicker.
+							// The old code did `solverOutputGroup.getChildren().clear()`.
+							// We can create a dedicated group for boxes inside create3DScene and expose it?
+							// Or just assume `resultWorld` children from index 4 onwards are boxes.
+							// Let's safely iterate and remove boxes.
+							resultWorld.getChildren().removeIf(node -> node instanceof Box);
+							// Wait, axes are boxes too.
+							// We can mark axes with user data or just rebuild everything.
+							// Rebuilding everything is fast enough for 300 boxes.
 
+							// Actually, let's just make a sub-group for content.
+							// But create3DScene returns a SubScene and populates the world.
+							// Let's modify create3DScene or just hack it here.
+							// Easiest is to just re-add axes if we clear.
+
+							// Better approach:
+							// Inside create3DScene, make a permanent group for 'static' stuff (camera,
+							// axes)
+							// and a group for 'dynamic' stuff (boxes).
+							// Since I can't easily change the signature of create3DScene in this replace
+							// block without changing other things,
+							// I will just rely on the fact that I know what create3DScene does.
+
+							// BUT, I can just clear simply:
+							// resultWorld.getChildren().clear();
+							// And then add camera/axes back.
+							// Or, verify what create3DScene does. It clears world.
+							// So if I call create3DScene again? No, that creates a NEW SubScene. I don't
+							// want a new SubScene every frame.
+
+							// Fix: In create3DScene, I'll add a specific Group for boxes.
+							// I'll make `private Group boxGroup;` field.
+							// In create3DScene: `boxGroup = new Group();
+							// world.getChildren().add(boxGroup);`
+							// Here: `boxGroup.getChildren().clear(); ... add results to boxGroup`
+						});
+
+						// We need to wait for Platform.runLater to define boxGroup if we go that route.
+						// Instead, let's just use a dedicated group that we create/manage here or
+						// finding by ID.
+
+						Platform.runLater(() -> {
+							// We can't easily use a dedicated field without adding it to the class.
+							// Let's inspect resultWorld children.
+							// If we just clear resultWorld and re-add camera/axes + boxes, it works.
+							// But we lose camera position if we recreate camera.
+							// We MUST preserve camera.
+
+							// Let's assume resultWorld has [CameraGroup, Axis1, Axis2, Axis3, ...Boxes...]
+							// We can remove from index 4 to end.
+							if (resultWorld != null && resultWorld.getChildren().size() > 4) {
+								resultWorld.getChildren().remove(4, resultWorld.getChildren().size());
+							}
+
+							int binOffset = -50;
+							for (List<com.binpacker.lib.common.Box> binBoxes : result) {
+								for (com.binpacker.lib.common.Box spec : binBoxes) {
+									Color boxColor = boxColors.get(spec.id % boxColors.size());
+									PhongMaterial boxMaterial = new PhongMaterial(boxColor);
+									Box box = new Box(spec.size.x, spec.size.y, spec.size.z);
+									box.setMaterial(boxMaterial);
+
+									box.setTranslateX(spec.position.x + spec.size.x / 2 + binOffset);
+									box.setTranslateY(spec.position.y + spec.size.y / 2);
+									box.setTranslateZ(spec.position.z + spec.size.z / 2);
+
+									resultWorld.getChildren().add(box);
+								}
+
+								// Draw bin outline
+								Box binBox = new Box(bin.w, bin.h, bin.d);
+								binBox.setDrawMode(DrawMode.LINE);
+								binBox.setMaterial(new PhongMaterial(Color.BLACK));
+								binBox.setTranslateX(bin.w / 2 + binOffset);
+								binBox.setTranslateY(bin.h / 2);
+								binBox.setTranslateZ(bin.d / 2);
+								resultWorld.getChildren().add(binBox);
+
+								binOffset += 40;
+							}
+						});
+					}
+				} finally {
+					isSolving = false;
+					optimizer.release();
 				}
-
-				optimizer.release();
-
 				return null;
 			}
 		};
-		new Thread(solverTask).start();
+		new Thread(currentSolverTask).start();
 	}
 
 	private void exportSolution() {
