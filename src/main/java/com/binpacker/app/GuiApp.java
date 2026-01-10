@@ -45,7 +45,9 @@ import javafx.scene.shape.DrawMode;
 import javafx.scene.transform.Rotate;
 import javafx.stage.Stage;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import javafx.stage.FileChooser;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -118,6 +120,10 @@ public class GuiApp extends Application {
 
 	private String axis = "x";
 
+	private ComboBox<String> inputSourceCombo;
+	private TextField filePathField;
+	private File selectedCsvFile;
+
 	NumberTextField binWidthField = new NumberTextField(30);
 	NumberTextField binHeightField = new NumberTextField(30);
 	NumberTextField binDepthField = new NumberTextField(30);
@@ -138,6 +144,44 @@ public class GuiApp extends Application {
 		binDimensionFields.getChildren().addAll(binWidthField, binHeightField, binDepthField);
 
 		controls.getChildren().addAll(binLabel, binDimensionFields);
+
+		// Input Source Selection
+		Label inputLabel = new Label("Input Source:");
+		inputSourceCombo = new ComboBox<>();
+		inputSourceCombo.getItems().addAll("Demo Data", "CSV File");
+		inputSourceCombo.setValue("Demo Data");
+
+		filePathField = new TextField();
+		filePathField.setPromptText("Select CSV file...");
+		filePathField.setEditable(false);
+		filePathField.setPrefWidth(150);
+		filePathField.setDisable(true); // default to demo data
+
+		Button browseButton = new Button("Browse");
+		browseButton.setDisable(true);
+
+		browseButton.setOnAction(e -> {
+			FileChooser fileChooser = new FileChooser();
+			fileChooser.setTitle("Open Box CSV");
+			fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+			File file = fileChooser.showOpenDialog(primaryStage);
+			if (file != null) {
+				selectedCsvFile = file;
+				filePathField.setText(file.getName());
+			}
+		});
+
+		inputSourceCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+			boolean isCsv = "CSV File".equals(newVal);
+			filePathField.setDisable(!isCsv);
+			browseButton.setDisable(!isCsv);
+		});
+
+		HBox inputFileBox = new HBox(5);
+		inputFileBox.setAlignment(Pos.CENTER_LEFT);
+		inputFileBox.getChildren().addAll(filePathField, browseButton);
+
+		controls.getChildren().addAll(inputLabel, inputSourceCombo, inputFileBox);
 
 		this.solverComboBox = new ComboBox<>();
 		this.solverComboBox.setConverter(new javafx.util.StringConverter<Object>() {
@@ -288,7 +332,7 @@ public class GuiApp extends Application {
 				if (result) {
 					statusLabel.setText("Device " + deviceStr + " seems to work");
 				} else {
-					statusLabel.setText("Device " + deviceStr + " did not pass smoke test");
+					statusLabel.setText("Device " + deviceStr + " has issues");
 				}
 			}
 		});
@@ -313,7 +357,7 @@ public class GuiApp extends Application {
 		solveButton.setOnAction(e -> runSolver());
 		exportButton.setOnAction(e -> exportSolution());
 
-		Scene scene = new Scene(root, 400, 600); // Smaller size for controls only
+		Scene scene = new Scene(root, 400, 700); // Smaller size for controls only
 		primaryStage.setTitle("Bin packing solver - Controls");
 		primaryStage.setScene(scene);
 		primaryStage.show();
@@ -478,8 +522,25 @@ public class GuiApp extends Application {
 			});
 		}
 
-		// Generate Data
-		List<com.binpacker.lib.common.Box> boxes = generateRandomBoxes(300);
+		// Generate or Load Data
+		List<com.binpacker.lib.common.Box> boxes;
+		if ("CSV File".equals(inputSourceCombo.getValue())) {
+			if (selectedCsvFile == null || !selectedCsvFile.exists()) {
+				statusLabel.setText("Please select a valid CSV file.");
+				isSolving = false;
+				return;
+			}
+			boxes = loadBoxesFromCsv(selectedCsvFile);
+			if (boxes.isEmpty()) {
+				statusLabel.setText("No valid boxes found in CSV.");
+				isSolving = false;
+				return;
+			}
+			System.out.println("Loaded " + boxes.size() + " boxes from CSV.");
+		} else {
+			boxes = generateRandomBoxes(300);
+		}
+
 		com.binpacker.lib.common.Bin bin = new com.binpacker.lib.common.Bin(0, binWidthField.getValue(),
 				binHeightField.getValue(), binDepthField.getValue());
 		// Solve
@@ -702,5 +763,39 @@ public class GuiApp extends Application {
 		}
 		return boxes;
 
+	}
+
+	private List<com.binpacker.lib.common.Box> loadBoxesFromCsv(File file) {
+		List<com.binpacker.lib.common.Box> boxes = new ArrayList<>();
+		try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+			String line;
+			int idCounter = 0;
+			while ((line = br.readLine()) != null) {
+				line = line.trim();
+				if (line.isEmpty() || line.startsWith("#"))
+					continue; // Skip empty or comment lines
+
+				String[] parts = line.split(",");
+				if (parts.length >= 3) {
+					try {
+						float w = Float.parseFloat(parts[0].trim());
+						float h = Float.parseFloat(parts[1].trim());
+						float d = Float.parseFloat(parts[2].trim());
+
+						com.binpacker.lib.common.Box box = new com.binpacker.lib.common.Box(
+								new com.binpacker.lib.common.Point3f(0, 0, 0), // Initial position 0
+								new com.binpacker.lib.common.Point3f(w, h, d));
+						box.id = idCounter++;
+						boxes.add(box);
+					} catch (NumberFormatException e) {
+						System.err.println("Skipping invalid line: " + line);
+					}
+				}
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			// Could show an alert, but logging used for now
+		}
+		return boxes;
 	}
 }
