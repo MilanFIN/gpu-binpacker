@@ -130,6 +130,10 @@ public class GuiApp extends Application {
 	NumberTextField binHeightField = new NumberTextField(30);
 	NumberTextField binDepthField = new NumberTextField(30);
 
+	private CheckBox rotX;
+	private CheckBox rotY;
+	private CheckBox rotZ;
+
 	@Override
 	public void start(Stage primaryStage) {
 		this.primaryStage = primaryStage;
@@ -196,11 +200,11 @@ public class GuiApp extends Application {
 
 		// allowed rotations
 		Label rotationLabel = new Label("Allow boxes to rotate in axes:");
-		CheckBox rotX = new CheckBox("X");
+		rotX = new CheckBox("X");
 		rotX.setSelected(true);
-		CheckBox rotY = new CheckBox("Y");
+		rotY = new CheckBox("Y");
 		rotY.setSelected(true);
-		CheckBox rotZ = new CheckBox("Z");
+		rotZ = new CheckBox("Z");
 		rotZ.setSelected(true);
 
 		HBox rotationBox = new HBox(10);
@@ -574,7 +578,12 @@ public class GuiApp extends Application {
 		Object selectedSolver = solverComboBox.getValue();
 		Optimizer<?> optimizer;
 
-		SolverProperties properties = new SolverProperties(bin, growingBin, axis, openCLDeviceComboBox.getValue());
+		List<Integer> rotationAxes = new ArrayList<>();
+		if (rotX.isSelected()) rotationAxes.add(0);
+		if (rotY.isSelected()) rotationAxes.add(1);
+		if (rotZ.isSelected()) rotationAxes.add(2);
+		
+		SolverProperties properties = new SolverProperties(bin, growingBin, axis, rotationAxes, openCLDeviceComboBox.getValue());
 
 		if (selectedSolver instanceof ParallelSolverInterface) {
 			GPUOptimizer gpuOptimizer = new GPUOptimizer();
@@ -596,7 +605,7 @@ public class GuiApp extends Application {
 					// Create a fresh bin copy to avoid shared mutable state
 					com.binpacker.lib.common.Bin freshBin = new com.binpacker.lib.common.Bin(
 							bin.index, bin.w, bin.h, bin.d);
-					SolverProperties freshProps = new SolverProperties(freshBin, growingBin, axis,
+					SolverProperties freshProps = new SolverProperties(freshBin, growingBin, axis, rotationAxes,
 							openCLDeviceComboBox.getValue());
 					s.init(freshProps);
 					return s;

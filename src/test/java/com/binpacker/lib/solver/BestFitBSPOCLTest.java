@@ -35,7 +35,7 @@ class BestFitBSPOCLTest {
 		boxes.add(new Box(2, new Point3f(0, 0, 0), new Point3f(3, 3, 3)));
 		Bin binTemplate = new Bin(0, 10, 10, 10);
 
-		SolverProperties properties = new SolverProperties(binTemplate, false, "x", device);
+		SolverProperties properties = new SolverProperties(binTemplate, false, "x", List.of(0, 1, 2), device);
 		solver.init(properties);
 
 		try {
@@ -88,7 +88,7 @@ class BestFitBSPOCLTest {
 
 		boxes.add(new Box(2, new Point3f(0, 0, 0), new Point3f(2, 5, 2)));
 
-		SolverProperties properties = new SolverProperties(binTemplate, false, "x", device);
+		SolverProperties properties = new SolverProperties(binTemplate, false, "x", List.of(0, 1, 2), device);
 		solver.init(properties);
 
 		try {

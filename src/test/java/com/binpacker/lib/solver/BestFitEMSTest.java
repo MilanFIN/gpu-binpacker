@@ -22,7 +22,7 @@ class BestFitEMSTest {
 		boxes.add(new Box(2, new Point3f(0, 0, 0), new Point3f(3, 3, 3)));
 		Bin binTemplate = new Bin(0, 10, 10, 10);
 
-		SolverProperties properties = new SolverProperties(binTemplate, false, "x");
+		SolverProperties properties = new SolverProperties(binTemplate, false, "x", List.of(0, 1, 2));
 		bfemsSolver.init(properties);
 		List<List<Box>> result = bfemsSolver.solve(boxes);
 
