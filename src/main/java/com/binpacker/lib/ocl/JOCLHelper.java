@@ -13,9 +13,16 @@ import static org.jocl.CL.*;
 
 public class JOCLHelper {
 
+	private static boolean isOpenCLAvailable = true;
+
 	static {
-		// Enable JOCL exceptions for easier debugging
-		CL.setExceptionsEnabled(true);
+		try {
+			// Enable JOCL exceptions for easier debugging
+			CL.setExceptionsEnabled(true);
+		} catch (Throwable t) {
+			isOpenCLAvailable = false;
+			System.err.println("OpenCL is not available: " + t.getMessage());
+		}
 	}
 
 	/**
@@ -24,53 +31,61 @@ public class JOCLHelper {
 	public static List<OpenCLDevice> getAvailableDevices() {
 		List<OpenCLDevice> list = new ArrayList<>();
 
-		// Obtain the number of platforms
-		int[] numPlatformsArray = new int[1];
+		if (!isOpenCLAvailable) {
+			return list;
+		}
+
 		try {
+			// Obtain the number of platforms
+			int[] numPlatformsArray = new int[1];
 			clGetPlatformIDs(0, null, numPlatformsArray);
-		} catch (CLException e) {
-			// No platforms found or other error
-			return list;
-		}
-		int numPlatforms = numPlatformsArray[0];
+			int numPlatforms = numPlatformsArray[0];
 
-		if (numPlatforms == 0) {
-			return list;
-		}
+			if (numPlatforms == 0) {
+				return list;
+			}
 
-		// Obtain platform IDs
-		cl_platform_id[] platforms = new cl_platform_id[numPlatforms];
-		clGetPlatformIDs(platforms.length, platforms, null);
+			// Obtain platform IDs
+			cl_platform_id[] platforms = new cl_platform_id[numPlatforms];
+			clGetPlatformIDs(platforms.length, platforms, null);
 
-		for (int i = 0; i < numPlatforms; i++) {
-			int[] numDevicesArray = new int[1];
-			try {
-				clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, null, numDevicesArray);
-			} catch (CLException e) {
-				if (e.getStatus() == CL_DEVICE_NOT_FOUND) {
+			for (int i = 0; i < numPlatforms; i++) {
+				int[] numDevicesArray = new int[1];
+				try {
+					clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, null, numDevicesArray);
+				} catch (CLException e) {
+					if (e.getStatus() == CL_DEVICE_NOT_FOUND) {
+						continue;
+					}
+					throw e;
+				}
+				int numDevices = numDevicesArray[0];
+
+				if (numDevices == 0) {
 					continue;
 				}
-				throw e;
-			}
-			int numDevices = numDevicesArray[0];
 
-			if (numDevices == 0) {
-				continue;
-			}
+				cl_device_id[] devices = new cl_device_id[numDevices];
+				clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, numDevices, devices, null);
 
-			cl_device_id[] devices = new cl_device_id[numDevices];
-			clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, numDevices, devices, null);
-
-			for (int d = 0; d < numDevices; d++) {
-				String name = getDeviceString(devices[d], CL_DEVICE_NAME);
-				list.add(new OpenCLDevice(i, d, name));
+				for (int d = 0; d < numDevices; d++) {
+					String name = getDeviceString(devices[d], CL_DEVICE_NAME);
+					list.add(new OpenCLDevice(i, d, name));
+				}
 			}
+		} catch (Throwable t) {
+			System.err.println("Failed to get OpenCL devices: " + t.getMessage());
+			isOpenCLAvailable = false;
+			return new ArrayList<>(); // Return empty list on failure
 		}
 
 		return list;
 	}
 
 	public static boolean testOpenCLDevice(OpenCLDevice device) {
+		if (!isOpenCLAvailable) {
+			return false;
+		}
 
 		try {
 			// Re-obtain the cl_device_id for the given OpenCLDevice
@@ -193,6 +208,11 @@ public class JOCLHelper {
 	 * Adapted from JOCL Sample.
 	 */
 	public static void runSample(int platformIndex, int deviceIndex) {
+		if (!isOpenCLAvailable) {
+			System.err.println("OpenCL is not available. Skipping sample.");
+			return;
+		}
+
 		final long deviceType = CL_DEVICE_TYPE_DEFAULT;
 
 		// Create input- and output data
