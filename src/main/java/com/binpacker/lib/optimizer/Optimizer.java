@@ -5,46 +5,46 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import com.binpacker.lib.common.Bin;
 import com.binpacker.lib.common.Box;
-import com.binpacker.lib.solver.Solver;
+import com.binpacker.lib.solver.SolverInterface;
 
-public abstract class Optimizer {
+public abstract class Optimizer<S> {
 
-	private Solver solver;
+	protected S solverSource;
 	protected List<Box> boxes;
-	private Bin bin;
+	protected Bin bin;
 
 	protected List<List<Integer>> boxOrders; // Population
-	private Random random = new Random();
+	protected Random random = new Random();
 	protected int populationSize;
 	private int eliteCount;
 	protected boolean growingBin;
 	protected String growAxis;
 
-	protected abstract List<Integer> crossOver(List<Integer> parent1, List<Integer> parent2);
+	protected boolean threaded;
 
-	protected abstract List<Integer> mutate(List<Integer> order);
+	protected abstract List<Solution> evaluatePopulation(List<List<Integer>> population);
+
+	protected abstract List<List<Box>> finalizeBestSolution(Solution bestSolution);
 
 	public abstract double rate(List<List<Box>> solution, Bin bin);
 
 	// ---- Initialize ----
-	public void initialize(Solver solver, List<Box> boxes, Bin bin, boolean growingBin, String growAxis,
+	public void initialize(S solverSource, List<Box> boxes, Bin bin, boolean growingBin,
+			String growAxis,
 			int populationSize,
-			int eliteCount) {
-		this.solver = solver;
+			int eliteCount, boolean threaded) {
+		this.solverSource = solverSource;
 		this.boxes = boxes;
 		this.bin = bin;
 		this.growingBin = growingBin;
 		this.growAxis = growAxis;
 		this.populationSize = populationSize;
 		this.eliteCount = eliteCount;
+		this.threaded = threaded;
 
 		generateInitialPopulation();
 	}
@@ -56,110 +56,133 @@ public abstract class Optimizer {
 		for (int i = 0; i < boxes.size(); i++)
 			base.add(i);
 
-		for (int i = 0; i < populationSize; i++) {
+		// // First order: growing by volume
+		List<Integer> growingOrder = new ArrayList<>(base);
+		Collections.sort(growingOrder,
+				(i1, i2) -> Double.compare(boxes.get(i1).getVolume(),
+						boxes.get(i2).getVolume()));
+		boxOrders.add(growingOrder);
+
+		// Second order: shrinking by volume
+		List<Integer> shrinkingOrder = new ArrayList<>(base);
+		Collections.sort(shrinkingOrder,
+				(i1, i2) -> Double.compare(boxes.get(i2).getVolume(), boxes.get(i1).getVolume()));
+		boxOrders.add(shrinkingOrder);
+
+		// Remaining orders: random
+		for (int i = 2; i < populationSize; i++) {
 			List<Integer> order = new ArrayList<>(base);
 			Collections.shuffle(order, random);
 			boxOrders.add(order);
 		}
+
+		this.populationSize = boxOrders.size();
 	}
 
 	// ---- Main GA Logic ----
 	public List<List<Box>> executeNextGeneration() {
 
-		List<ScoredSolution> scored = new ArrayList<>();
+		// 1. Evaluate current population
+		List<Solution> scored = evaluatePopulation(boxOrders);
 
-		int numThreads = Runtime.getRuntime().availableProcessors();
-		ExecutorService executor = Executors.newFixedThreadPool(numThreads);
-		List<Future<ScoredSolution>> futures = new ArrayList<>();
-
-		for (List<Integer> order : boxOrders) {
-			futures.add(executor.submit(() -> {
-				List<Box> orderedBoxes = applyOrder(order);
-				List<List<Box>> solved = solver.solve(orderedBoxes, bin, growingBin, growAxis);
-				double score = rate(solved, this.bin);
-				return new ScoredSolution(order, score, solved);
-			}));
-		}
-
-		for (Future<ScoredSolution> future : futures) {
-			try {
-				scored.add(future.get());
-			} catch (InterruptedException | ExecutionException e) {
-				Thread.currentThread().interrupt(); // Restore interrupt status
-				// Handle or log the exception, e.g., System.err.println("Error processing task:
-				// " + e.getMessage());
-			}
-		}
-		executor.shutdown();
-		try {
-			if (!executor.awaitTermination(3, TimeUnit.MINUTES)) { // Wait for tasks to complete
-				// Optionally, force shutdown if tasks don't complete in time
-				executor.shutdownNow();
-			}
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			executor.shutdownNow(); // Cancel currently executing tasks
-		}
-
-		// Sort best to worst, order is reverse when packing to a single bin
-		// (lower height is better)
+		// 2. Sort best to worst
 		if (!growingBin) {
 			scored.sort(Comparator.comparingDouble(s -> -s.score));
 		} else {
 			scored.sort(Comparator.comparingDouble(s -> s.score));
 		}
 
-		// Best solution of this generation → returned
-		List<List<Box>> bestSolution = scored.get(0).solved;
+		// 3. Get best solution of this generation
+		Solution bestOfGen = scored.get(0);
+		List<List<Box>> bestSolutionPack = finalizeBestSolution(bestOfGen);
 
 		// ---------------------------------------------------------
 		// Build next generation
 		// ---------------------------------------------------------
 		List<List<Integer>> nextGen = new ArrayList<>();
 
-		// 1. Keep the elite (top 20%)
-		for (int i = 0; i < eliteCount; i++) {
+		// Keep elite
+		for (int i = 0; i < eliteCount && i < scored.size(); i++) {
 			nextGen.add(new ArrayList<>(scored.get(i).order));
 		}
 
-		// 2. Fill remaining 80% with crossover or mutation
+		// Fill remaining
 		while (nextGen.size() < populationSize) {
-
 			if (random.nextBoolean()) {
 				// crossover
-				List<Integer> p1 = scored.get(random.nextInt(eliteCount)).order;
-				List<Integer> p2 = scored.get(random.nextInt(eliteCount)).order;
+				int idx1 = random.nextInt(Math.min(eliteCount, scored.size()));
+				int idx2 = random.nextInt(Math.min(eliteCount, scored.size()));
+				List<Integer> p1 = scored.get(idx1).order;
+				List<Integer> p2 = scored.get(idx2).order;
 				nextGen.add(crossOver(p1, p2));
 			} else {
 				// mutation
-				List<Integer> p = scored.get(random.nextInt(eliteCount)).order;
+				int idx = random.nextInt(Math.min(eliteCount, scored.size()));
+				List<Integer> p = scored.get(idx).order;
 				nextGen.add(mutate(p));
 			}
 		}
 
-		// Replace population and increment generation counter
+		// Replace population
 		this.boxOrders = nextGen;
 
-		return bestSolution;
+		return bestSolutionPack;
+	}
+
+	protected List<Integer> crossOver(List<Integer> parent1, List<Integer> parent2) {
+		int size = parent1.size();
+		int cut1 = random.nextInt(size);
+		int cut2 = random.nextInt(size);
+
+		if (cut1 > cut2) {
+			int t = cut1;
+			cut1 = cut2;
+			cut2 = t;
+		}
+
+		List<Integer> child = new ArrayList<>(Collections.nCopies(size, null));
+
+		// 1. Copy the slice from parent2
+		for (int i = cut1; i <= cut2; i++) {
+			child.set(i, parent2.get(i));
+		}
+
+		// 2. Fill remaining positions from parent1 in order
+		int fillPos = (cut2 + 1) % size;
+
+		for (int i = 0; i < size; i++) {
+			int gene = parent1.get((cut2 + 1 + i) % size);
+
+			if (!child.contains(gene)) {
+				child.set(fillPos, gene);
+				fillPos = (fillPos + 1) % size;
+			}
+		}
+
+		return child;
+	}
+
+	protected List<Integer> mutate(List<Integer> order) {
+		List<Integer> mutatedOrder = new ArrayList<>(order);
+		int index1 = random.nextInt(mutatedOrder.size());
+		int index2 = random.nextInt(mutatedOrder.size());
+		while (index1 == index2) {
+			index2 = random.nextInt(mutatedOrder.size());
+		}
+		Collections.swap(mutatedOrder, index1, index2);
+		return mutatedOrder;
+	}
+
+	public void release() {
+		// Default no-op
 	}
 
 	// --- Helper: apply an index order to the box list ---
-	private List<Box> applyOrder(List<Integer> order) {
+	protected List<Box> applyOrder(List<Integer> order) {
 		List<Box> result = new ArrayList<>();
 		for (Integer idx : order)
 			result.add(boxes.get(idx));
 		return result;
 	}
 
-	private static class ScoredSolution {
-		final List<Integer> order;
-		final double score;
-		final List<List<Box>> solved;
-
-		ScoredSolution(List<Integer> order, double score, List<List<Box>> solved) {
-			this.order = order;
-			this.score = score;
-			this.solved = solved;
-		}
-	}
 }

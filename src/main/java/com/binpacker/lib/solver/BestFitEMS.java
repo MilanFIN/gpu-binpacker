@@ -10,7 +10,7 @@ import com.binpacker.lib.common.Space;
 import com.binpacker.lib.solver.common.PlacementUtils;
 import com.binpacker.lib.solver.common.SolverProperties;
 
-public class FirstFit2D implements SolverInterface {
+public class BestFitEMS implements SolverInterface {
 
 	private Bin binTemplate;
 	private boolean growingBin;
@@ -36,41 +36,67 @@ public class FirstFit2D implements SolverInterface {
 				case "y":
 					binTemplate.h = Integer.MAX_VALUE;
 					break;
+				case "z":
+					binTemplate.d = Integer.MAX_VALUE;
+					break;
 				default:
 					System.err.println("Invalid growAxis specified: " + growAxis);
 					binTemplate.h = Integer.MAX_VALUE;
 					break;
 			}
 		}
-		activeBins.add(new Bin(0, binTemplate.w, binTemplate.h));
 
-		for (int b = 0; b < boxes.size(); b++) {
-			Box box = boxes.get(b);
+		activeBins.add(new Bin(0, binTemplate.w, binTemplate.h, binTemplate.d));
+
+		for (Box box : boxes) {
 			boolean placed = false;
 			for (Bin bin : activeBins) {
+				float bestScore = Float.MAX_VALUE;
+				Bin bestFitBin = null;
+				int bestSpaceIndex = -1;
+				Box bestFittedBox = null;
+
 				for (int i = 0; i < bin.freeSpaces.size(); i++) {
 					Space space = bin.freeSpaces.get(i);
 					Box fittedBox = PlacementUtils.findFit(box, space);
 					if (fittedBox != null) {
-						PlacementUtils.placeBoxBSP(fittedBox, bin, i);
-						placed = true;
-						break;
+						float score = PlacementUtils.calculateScoreEMS(fittedBox, space);
+						if (score < bestScore) {
+							bestScore = score;
+							bestFitBin = bin;
+							bestSpaceIndex = i;
+							bestFittedBox = fittedBox;
+						}
 					}
 				}
-				if (placed)
-					break;
+
+				if (bestFittedBox != null) {
+					Box placedBox = PlacementUtils.placeBoxEMS(bestFittedBox, bestFitBin, bestSpaceIndex);
+					PlacementUtils.pruneCollidingSpacesEMS(placedBox, bestFitBin);
+					placed = true;
+
+					bin.utilCounter++;
+					if (bin.utilCounter > 10) {
+						PlacementUtils.pruneWrappedSpacesBinEMS(bin);
+						bin.utilCounter = 0;
+					}
+
+					break; // Break from the activeBins loop, as we've placed the box
+				}
+
 			}
 
-			if (!growingBin && !placed) {
-				Bin newBin = new Bin(activeBins.size(), binTemplate.w, binTemplate.h);
+			if (!placed) {
+				Bin newBin = new Bin(activeBins.size(), binTemplate.w, binTemplate.h, binTemplate.d);
 				activeBins.add(newBin);
 				Box fittedBox = PlacementUtils.findFit(box, newBin.freeSpaces.get(0));
 				if (fittedBox != null) {
-					PlacementUtils.placeBoxBSP(fittedBox, newBin, 0);
+					PlacementUtils.placeBoxEMS(fittedBox, newBin, 0);
 				} else {
 					System.err.println("Box too big for bin: " + box);
 				}
 			}
+
 		}
 
 		if (growingBin) {
@@ -88,6 +114,13 @@ public class FirstFit2D implements SolverInterface {
 						maxY = Math.max(maxY, placedBox.position.y + placedBox.size.y);
 					}
 					activeBins.get(0).h = maxY;
+					break;
+				case "z":
+					float maxZ = 0;
+					for (Box placedBox : activeBins.get(0).boxes) {
+						maxZ = Math.max(maxZ, placedBox.position.z + placedBox.size.z);
+					}
+					activeBins.get(0).d = maxZ;
 					break;
 				default:
 					System.err.println("Invalid growAxis specified for final bin sizing: " + growAxis);

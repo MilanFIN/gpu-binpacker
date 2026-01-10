@@ -9,18 +9,22 @@ import java.util.List;
 import com.binpacker.lib.common.Bin;
 import com.binpacker.lib.common.Box;
 import com.binpacker.lib.common.Point3f;
+import com.binpacker.lib.solver.BestFitEMS;
+import com.binpacker.lib.solver.common.SolverProperties;
 
-class MOABTest {
+class BestFitEMSTest {
 
 	@Test
 	void testSolve() {
-		MOAB solver = new MOAB();
+		BestFitEMS bfemsSolver = new BestFitEMS();
 		List<Box> boxes = new ArrayList<>();
 		boxes.add(new Box(1, new Point3f(0, 0, 0), new Point3f(2, 2, 2)));
 		boxes.add(new Box(2, new Point3f(0, 0, 0), new Point3f(3, 3, 3)));
 		Bin binTemplate = new Bin(0, 10, 10, 10);
 
-		List<List<Box>> result = solver.solve(boxes, binTemplate, false, "x");
+		SolverProperties properties = new SolverProperties(binTemplate, false, "x");
+		bfemsSolver.init(properties);
+		List<List<Box>> result = bfemsSolver.solve(boxes);
 
 		// check that both boxes ended in the bin in the same order as in the
 		// original queue

@@ -2,13 +2,26 @@ package com.binpacker.app;
 
 import com.binpacker.lib.common.Point3f;
 import com.binpacker.lib.common.Utils;
-import com.binpacker.lib.optimizer.GAOptimizer;
+import com.binpacker.lib.ocl.JOCLHelper;
+import com.binpacker.lib.optimizer.CPUOptimizer;
 import com.binpacker.lib.optimizer.Optimizer;
 import com.binpacker.lib.solver.BestFit3D;
+import com.binpacker.lib.solver.BestFitBSPOCL;
 import com.binpacker.lib.solver.FirstFit2D;
 import com.binpacker.lib.solver.FirstFit3D;
-import com.binpacker.lib.solver.MOAB;
-import com.binpacker.lib.solver.Solver;
+import com.binpacker.lib.solver.SolverInterface;
+import com.binpacker.lib.solver.common.SolverProperties;
+import com.binpacker.lib.solver.BestFitEMS;
+import com.binpacker.lib.solver.BestFitEMSOCL;
+import com.binpacker.lib.solver.FFBSPOCL;
+import com.binpacker.lib.solver.parallelsolvers.solvers.GPUSolver;
+import com.binpacker.lib.solver.parallelsolvers.solvers.ParallelSolverInterface;
+import com.binpacker.lib.solver.parallelsolvers.solvers.FirstFitReference;
+import com.binpacker.lib.solver.parallelsolvers.solvers.BestFitReference;
+import com.binpacker.lib.solver.parallelsolvers.solvers.BestFitEMSReference;
+import com.binpacker.lib.optimizer.CPUOptimizer;
+import com.binpacker.lib.optimizer.GPUOptimizer;
+import com.binpacker.lib.ocl.OpenCLDevice;
 
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -93,7 +106,8 @@ public class GuiApp extends Application {
 
 	private List<List<com.binpacker.lib.common.Box>> result;
 
-	private ComboBox<Solver> solverComboBox;
+	private ComboBox<Object> solverComboBox;
+	private ComboBox<OpenCLDevice> openCLDeviceComboBox;
 
 	private int generations = 200;
 	private int population = 30;
@@ -132,32 +146,48 @@ public class GuiApp extends Application {
 		controls.getChildren().addAll(binLabel, binDimensionFields);
 
 		this.solverComboBox = new ComboBox<>();
-		this.solverComboBox.setConverter(new javafx.util.StringConverter<Solver>() {
+		this.solverComboBox.setConverter(new javafx.util.StringConverter<Object>() {
 			@Override
-			public String toString(Solver solver) {
+			public String toString(Object solver) {
 				if (solver == null) {
 					return null;
 				}
 				// Provide user-friendly names for each solver type
 				if (solver instanceof FirstFit3D) {
-					return "First Fit 3D";
+					return "3D first fit bsp";
 				} else if (solver instanceof FirstFit2D) {
-					return "First Fit 2D";
+					return "2D first fit bsp";
 				} else if (solver instanceof BestFit3D) {
-					return "Best Fit 3D";
-				} else if (solver instanceof MOAB) {
-					return "MOAB";
+					return "3D best fit bsp";
+				} else if (solver instanceof BestFitEMS) {
+					return "Best Fit EMS";
+				} else if (solver instanceof FFBSPOCL) {
+					return "FFBSP OpenCL";
+				} else if (solver instanceof BestFitBSPOCL) {
+					return "Best Fit BSP OpenCL";
+				} else if (solver instanceof BestFitEMSOCL) {
+					return "Best Fit EMS OpenCL";
+				} else if (solver instanceof GPUSolver) {
+					GPUSolver gpuSolver = (GPUSolver) solver;
+					return gpuSolver.getDisplayName();
 				}
 				return solver.getClass().getSimpleName(); // Fallback
 			}
 
 			@Override
-			public Solver fromString(String string) {
+			public Object fromString(String string) {
 				// This method is used when parsing user input, not needed for simple selection
 				return null;
 			}
 		});
-		this.solverComboBox.getItems().addAll(new FirstFit3D(), new FirstFit2D(), new BestFit3D(), new MOAB());
+		this.solverComboBox.getItems().addAll(new FirstFit3D(), new FirstFit2D(), new BestFit3D(), new BestFitEMS(),
+				new FFBSPOCL(), new BestFitBSPOCL(), new BestFitEMSOCL(),
+				new GPUSolver("firstfit_complete.cl.template", "guillotine_first_fit", "FirstFit GPU (Parallel)",
+						new FirstFitReference()),
+				new GPUSolver("bestfit_complete.cl.template", "guillotine_best_fit", "BestFit GPU (Parallel)",
+						new BestFitReference()),
+				new GPUSolver("bestfit_ems.cl.template", "best_fit_ems", "BestFit EMS GPU (Parallel)",
+						new BestFitEMSReference()));
 		this.solverComboBox.setValue(this.solverComboBox.getItems().get(0)); // Set default to the first item
 
 		Button solveButton = new Button("Solve");
@@ -228,6 +258,50 @@ public class GuiApp extends Application {
 		growingBinHBox.getChildren().addAll(growingBinLabel, growingBinCheckBox);
 		growingBinHBox.getChildren().addAll(axisLabel, axisComboBox);
 		controls.getChildren().add(growingBinHBox);
+
+		List<OpenCLDevice> devices = JOCLHelper.getAvailableDevices();
+		System.out.println("Available devices: " + devices);
+		Label openCLDeviceLabel = new Label("OpenCL Device:");
+		HBox openCLDeviceHBox = new javafx.scene.layout.HBox(10); // 10 is spacing
+		openCLDeviceHBox.setAlignment(Pos.CENTER_LEFT);
+		this.openCLDeviceComboBox = new ComboBox<>();
+		this.openCLDeviceComboBox.getItems().addAll(devices);
+		this.openCLDeviceComboBox.setConverter(new javafx.util.StringConverter<OpenCLDevice>() {
+			@Override
+			public String toString(OpenCLDevice device) {
+
+				return device != null
+						? (device.toString().length() > 20 ? device.toString().substring(0, 20) : device.toString())
+						: "N/A";
+			}
+
+			@Override
+			public OpenCLDevice fromString(String string) {
+				return null;
+			}
+		});
+		if (!devices.isEmpty()) {
+			this.openCLDeviceComboBox.setValue(devices.get(0));
+		}
+		Button testButton = new Button("Test");
+		testButton.setOnAction(e -> {
+			OpenCLDevice device = this.openCLDeviceComboBox.getValue();
+			if (device != null) {
+				boolean result = JOCLHelper.testOpenCLDevice(device);
+				JOCLHelper.runSample(device.platformIndex, device.deviceIndex);
+				String deviceStr = device.toString().length() > 20 ? device.toString().substring(0, 20)
+						: device.toString();
+				if (result) {
+					statusLabel.setText("Device " + deviceStr + " seems to work");
+				} else {
+					statusLabel.setText("Device " + deviceStr + " did not pass smoke test");
+				}
+			}
+		});
+
+		openCLDeviceHBox.getChildren().addAll(this.openCLDeviceComboBox, testButton);
+		controls.getChildren().add(openCLDeviceLabel);
+		controls.getChildren().add(openCLDeviceHBox);
 
 		statusLabel = new Label("Ready");
 		controls.getChildren().add(this.solverComboBox);
@@ -335,13 +409,50 @@ public class GuiApp extends Application {
 		statusLabel.setText("Solving...");
 
 		// Generate Data
-		List<com.binpacker.lib.common.Box> boxes = generateRandomBoxes(500);
+		List<com.binpacker.lib.common.Box> boxes = generateRandomBoxes(300);
 		com.binpacker.lib.common.Bin bin = new com.binpacker.lib.common.Bin(0, binWidthField.getValue(),
 				binHeightField.getValue(), binDepthField.getValue());
 		// Solve
-		Solver solver = solverComboBox.getValue();
-		Optimizer optimizer = new GAOptimizer();
-		optimizer.initialize(solver, boxes, bin, growingBin, axis, this.population, this.eliteCount);
+		Object selectedSolver = solverComboBox.getValue();
+		Optimizer<?> optimizer;
+
+		SolverProperties properties = new SolverProperties(bin, growingBin, axis, openCLDeviceComboBox.getValue());
+
+		if (selectedSolver instanceof ParallelSolverInterface) {
+			GPUOptimizer gpuOptimizer = new GPUOptimizer();
+			ParallelSolverInterface parallelSolver = (ParallelSolverInterface) selectedSolver;
+			parallelSolver.init(properties);
+			gpuOptimizer.initialize(parallelSolver, boxes, bin, growingBin, axis, this.population, this.eliteCount,
+					true);
+			optimizer = gpuOptimizer;
+		} else if (selectedSolver instanceof SolverInterface) {
+			CPUOptimizer cpuOptimizer = new CPUOptimizer();
+			SolverInterface solver = (SolverInterface) selectedSolver;
+
+			boolean threaded = true;
+
+			Class<? extends SolverInterface> solverClass = solver.getClass();
+			java.util.function.Supplier<SolverInterface> factory = () -> {
+				try {
+					SolverInterface s = solverClass.getDeclaredConstructor().newInstance();
+					// Create a fresh bin copy to avoid shared mutable state
+					com.binpacker.lib.common.Bin freshBin = new com.binpacker.lib.common.Bin(
+							bin.index, bin.w, bin.h, bin.d);
+					SolverProperties freshProps = new SolverProperties(freshBin, growingBin, axis,
+							openCLDeviceComboBox.getValue());
+					s.init(freshProps);
+					return s;
+				} catch (Exception ex) {
+					throw new RuntimeException("Failed to create solver instance", ex);
+				}
+			};
+
+			cpuOptimizer.initialize(factory, boxes, bin, growingBin, axis, this.population, this.eliteCount, threaded);
+			optimizer = cpuOptimizer;
+		} else {
+			statusLabel.setText("Unknown solver type");
+			return;
+		}
 
 		Random random = new Random();
 		List<Color> boxColors = new ArrayList<>();
@@ -402,6 +513,8 @@ public class GuiApp extends Application {
 
 				}
 
+				optimizer.release();
+
 				return null;
 			}
 		};
@@ -437,17 +550,20 @@ public class GuiApp extends Application {
 	}
 
 	private List<com.binpacker.lib.common.Box> generateRandomBoxes(int count) {
+
 		List<com.binpacker.lib.common.Box> boxes = new ArrayList<>();
-		Random random = new Random();
+		Random random = new Random(42); // Fixed seed for deterministic results
 		for (int i = 0; i < count; i++) {
 			float width = random.nextInt(8) + 4;
 			float height = random.nextInt(8) + 4;
 			float depth = random.nextInt(8) + 4;
-			com.binpacker.lib.common.Box box = new com.binpacker.lib.common.Box(new Point3f(0, 0, 0),
-					new Point3f(width, height, depth));
+			com.binpacker.lib.common.Box box = new com.binpacker.lib.common.Box(
+					new com.binpacker.lib.common.Point3f(0, 0, 0),
+					new com.binpacker.lib.common.Point3f(width, height, depth));
 			box.id = i;
 			boxes.add(box);
 		}
 		return boxes;
+
 	}
 }

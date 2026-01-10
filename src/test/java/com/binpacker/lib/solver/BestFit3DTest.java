@@ -10,6 +10,7 @@ import com.binpacker.lib.common.Bin;
 import com.binpacker.lib.common.Box;
 import com.binpacker.lib.common.Point3f;
 import com.binpacker.lib.solver.BestFit3D;
+import com.binpacker.lib.solver.common.SolverProperties;
 
 class BestFit3DTest {
 
@@ -21,7 +22,9 @@ class BestFit3DTest {
 		boxes.add(new Box(2, new Point3f(0, 0, 0), new Point3f(3, 3, 3)));
 		Bin binTemplate = new Bin(0, 10, 10, 10);
 
-		List<List<Box>> result = solver.solve(boxes, binTemplate, false, "x");
+		SolverProperties properties = new SolverProperties(binTemplate, false, "x");
+		solver.init(properties);
+		List<List<Box>> result = solver.solve(boxes);
 
 		// check that both boxes ended in the bin in the same order as in the
 		// original queue

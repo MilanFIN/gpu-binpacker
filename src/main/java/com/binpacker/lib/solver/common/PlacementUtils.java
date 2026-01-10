@@ -1,128 +1,21 @@
-package com.binpacker.lib.solver;
+package com.binpacker.lib.solver.common;
 
-import java.util.ArrayList;
 import java.util.List;
 
-import com.binpacker.lib.common.Box;
 import com.binpacker.lib.common.Bin;
+import com.binpacker.lib.common.Box;
 import com.binpacker.lib.common.Point3f;
 import com.binpacker.lib.common.Space;
 
-public class MOAB implements Solver {
+public class PlacementUtils {
 
-	@Override
-	public List<List<Box>> solve(List<Box> boxes, Bin binTemplate, boolean growingBin, String growAxis) {
-		List<Bin> activeBins = new ArrayList<>();
-		List<List<Box>> result = new ArrayList<>();
-
-		if (growingBin) {
-			switch (growAxis) {
-				case "x":
-					binTemplate.w = Integer.MAX_VALUE;
-					break;
-				case "y":
-					binTemplate.h = Integer.MAX_VALUE;
-					break;
-				case "z":
-					binTemplate.d = Integer.MAX_VALUE;
-					break;
-				default:
-					System.err.println("Invalid growAxis specified: " + growAxis);
-					binTemplate.h = Integer.MAX_VALUE;
-					break;
-			}
-		}
-
-		activeBins.add(new Bin(0, binTemplate.w, binTemplate.h, binTemplate.d));
-
-		for (Box box : boxes) {
-			boolean placed = false;
-			for (Bin bin : activeBins) {
-				float bestScore = Float.MAX_VALUE;
-				Bin bestFitBin = null;
-				int bestSpaceIndex = -1;
-				Box bestFittedBox = null;
-
-				for (int i = 0; i < bin.freeSpaces.size(); i++) {
-					Space space = bin.freeSpaces.get(i);
-					Box fittedBox = findFit(box, space);
-					if (fittedBox != null) {
-						float score = calculateScore(fittedBox, space);
-						if (score < bestScore) {
-							bestScore = score;
-							bestFitBin = bin;
-							bestSpaceIndex = i;
-							bestFittedBox = fittedBox;
-						}
-					}
-				}
-
-				if (bestFittedBox != null) {
-					Box placedBox = placeBox(bestFittedBox, bestFitBin, bestSpaceIndex);
-					pruneCollidingSpaces(placedBox, bestFitBin);
-					placed = true;
-
-					bin.utilCounter++;
-					if (bin.utilCounter > 10) {
-						pruneWrappedSpacesBin(bin);
-						bin.utilCounter = 0;
-					}
-
-					break; // Break from the activeBins loop, as we've placed the box
-				}
-
-			}
-
-			if (!placed) {
-				Bin newBin = new Bin(activeBins.size(), binTemplate.w, binTemplate.h, binTemplate.d);
-				activeBins.add(newBin);
-				Box fittedBox = findFit(box, newBin.freeSpaces.get(0));
-				if (fittedBox != null) {
-					placeBox(fittedBox, newBin, 0);
-				} else {
-					System.err.println("Box too big for bin: " + box);
-				}
-			}
-
-		}
-
-		if (growingBin) {
-			switch (growAxis) {
-				case "x":
-					float maxX = 0;
-					for (Box placedBox : activeBins.get(0).boxes) {
-						maxX = Math.max(maxX, placedBox.position.x + placedBox.size.x);
-					}
-					activeBins.get(0).w = maxX;
-					break;
-				case "y":
-					float maxY = 0;
-					for (Box placedBox : activeBins.get(0).boxes) {
-						maxY = Math.max(maxY, placedBox.position.y + placedBox.size.y);
-					}
-					activeBins.get(0).h = maxY;
-					break;
-				case "z":
-					float maxZ = 0;
-					for (Box placedBox : activeBins.get(0).boxes) {
-						maxZ = Math.max(maxZ, placedBox.position.z + placedBox.size.z);
-					}
-					activeBins.get(0).d = maxZ;
-					break;
-				default:
-					System.err.println("Invalid growAxis specified for final bin sizing: " + growAxis);
-					break;
-			}
-		}
-
-		for (Bin bin : activeBins) {
-			result.add(bin.boxes);
-		}
-
-		return result;
+	public static void unorderedRemoveSpace(Bin bin, int spaceIndex) {
+		int lastIndex = bin.freeSpaces.size() - 1;
+		bin.freeSpaces.set(spaceIndex, bin.freeSpaces.get(lastIndex));
+		bin.freeSpaces.remove(bin.freeSpaces.size() - 1);
 	}
 
-	private Box findFit(Box box, Space space) {
+	public static Box findFit(Box box, Space space) {
 		// Check all 6 orientations (permutations of x, y, z)
 
 		// 1. (x, y, z)
@@ -158,7 +51,7 @@ public class MOAB implements Solver {
 		return null;
 	}
 
-	private Box placeBox(Box box, Bin bin, int spaceIndex) {
+	public static void placeBoxBSP(Box box, Bin bin, int spaceIndex) {
 		Space space = bin.freeSpaces.get(spaceIndex);
 
 		Box placedBox = new Box(
@@ -168,6 +61,35 @@ public class MOAB implements Solver {
 		bin.boxes.add(placedBox);
 
 		bin.freeSpaces.remove(spaceIndex);
+
+		Space right = new Space(space.x + box.size.x, space.y, space.z,
+				space.w - box.size.x, space.h, space.d);
+
+		Space top = new Space(space.x, space.y + box.size.y, space.z,
+				box.size.x, space.h - box.size.y, space.d);
+
+		Space front = new Space(space.x, space.y, space.z + box.size.z,
+				box.size.x, box.size.y, space.d - box.size.z);
+
+		if (right.w > 0 && right.h > 0 && right.d > 0)
+			bin.freeSpaces.add(right);
+		if (top.w > 0 && top.h > 0 && top.d > 0)
+			bin.freeSpaces.add(top);
+		if (front.w > 0 && front.h > 0 && front.d > 0)
+			bin.freeSpaces.add(front);
+
+	}
+
+	public static Box placeBoxEMS(Box box, Bin bin, int spaceIndex) {
+		Space space = bin.freeSpaces.get(spaceIndex);
+
+		Box placedBox = new Box(
+				box.id,
+				new Point3f(space.x, space.y, space.z),
+				new Point3f(box.size.x, box.size.y, box.size.z));
+		bin.boxes.add(placedBox);
+
+		unorderedRemoveSpace(bin, spaceIndex);
 
 		Space right = new Space(space.x + box.size.x, space.y, space.z,
 				space.w - box.size.x, space.h, space.d);
@@ -189,19 +111,51 @@ public class MOAB implements Solver {
 
 	}
 
-	private void pruneCollidingSpaces(Box box, Bin bin) {
+	public static List<Space> placeBoxEMSAndReturnNewSpaces(Box box, Bin bin, int spaceIndex) {
+		Space space = bin.freeSpaces.get(spaceIndex);
+
+		Box placedBox = new Box(
+				box.id,
+				new Point3f(space.x, space.y, space.z),
+				new Point3f(box.size.x, box.size.y, box.size.z));
+		bin.boxes.add(placedBox);
+
+		unorderedRemoveSpace(bin, spaceIndex);
+
+		List<Space> newFreeSpaces = new java.util.ArrayList<>();
+
+		Space right = new Space(space.x + box.size.x, space.y, space.z,
+				space.w - box.size.x, space.h, space.d);
+
+		Space top = new Space(space.x, space.y + box.size.y, space.z,
+				space.w, space.h - box.size.y, space.d);
+
+		Space front = new Space(space.x, space.y, space.z + box.size.z,
+				space.w, space.h, space.d - box.size.z);
+
+		if (right.w > 0 && right.h > 0 && right.d > 0)
+			newFreeSpaces.add(right);
+		if (top.w > 0 && top.h > 0 && top.d > 0)
+			newFreeSpaces.add(top);
+		if (front.w > 0 && front.h > 0 && front.d > 0)
+			newFreeSpaces.add(front);
+
+		return newFreeSpaces;
+	}
+
+	public static void pruneCollidingSpacesEMS(Box box, Bin bin) {
 		// can ignore 4 first ones, since those are created around the latest box
 		// placement
 		for (int i = bin.freeSpaces.size() - 1; i >= 0; i--) {
 			Space space = bin.freeSpaces.get(i);
 			if (box.collidesWith(space)) {
-				bin.freeSpaces.remove(i);
-				splitCollidingFreeSpace(box, space, bin);
+				unorderedRemoveSpace(bin, i);
+				splitCollidingFreeSpaceEMS(box, space, bin);
 			}
 		}
 	}
 
-	private void splitCollidingFreeSpace(Box box, Space space, Bin bin) {
+	public static void splitCollidingFreeSpaceEMS(Box box, Space space, Bin bin) {
 		// Create 4 new spaces around the box in the XY plane
 		// Z and Depth are inherited from the original space
 
@@ -279,12 +233,12 @@ public class MOAB implements Solver {
 
 	}
 
-	void pruneWrappedSpacesBin(Bin bin) {
+	public static void pruneWrappedSpacesBinEMS(Bin bin) {
 		for (int i = bin.freeSpaces.size() - 1; i >= 0; i--) {
 			Space space1 = bin.freeSpaces.get(i);
 			// Remove invalid spaces (zero or negative dimensions)
 			if (space1.w <= 0 || space1.h <= 0 || space1.d <= 0) {
-				bin.freeSpaces.remove(i);
+				unorderedRemoveSpace(bin, i);
 				continue;
 			}
 
@@ -308,18 +262,18 @@ public class MOAB implements Solver {
 			}
 
 			if (isWrapped) {
-				bin.freeSpaces.remove(i);
+				unorderedRemoveSpace(bin, i);
 			}
 		}
 	}
 
-	void pruneWrappedSpaces(List<Bin> activeBins) {
+	public static void pruneWrappedSpacesEMS(List<Bin> activeBins) {
 		for (Bin bin : activeBins) {
-			pruneWrappedSpacesBin(bin);
+			pruneWrappedSpacesBinEMS(bin);
 		}
 	}
 
-	private float calculateScore(Box box, Space space) {
+	public static float calculateScoreEMS(Box box, Space space) {
 		// Add a component for distance from origin (smaller x, y, z is better)
 		// Assuming space.x, space.y, space.z are non-negative.
 		float distanceScore = space.x + space.y + space.z;
