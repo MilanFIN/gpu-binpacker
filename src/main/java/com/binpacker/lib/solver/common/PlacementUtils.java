@@ -12,7 +12,7 @@ public class PlacementUtils {
 	public static void unorderedRemoveSpace(Bin bin, int spaceIndex) {
 		int lastIndex = bin.freeSpaces.size() - 1;
 		bin.freeSpaces.set(spaceIndex, bin.freeSpaces.get(lastIndex));
-		bin.freeSpaces.removeLast();
+		bin.freeSpaces.remove(bin.freeSpaces.size() - 1);
 	}
 
 	public static Box findFit(Box box, Space space) {
