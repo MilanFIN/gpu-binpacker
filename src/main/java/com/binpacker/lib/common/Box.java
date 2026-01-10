@@ -42,4 +42,8 @@ public class Box {
 				position.y + size.y > space.y &&
 				position.z + size.z > space.z;
 	}
+
+	public double getLongestSide() {
+		return Math.max(size.x, Math.max(size.y, size.z));
+	}
 }

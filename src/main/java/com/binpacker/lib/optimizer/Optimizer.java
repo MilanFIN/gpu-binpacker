@@ -69,6 +69,12 @@ public abstract class Optimizer<S> {
 				(i1, i2) -> Double.compare(boxes.get(i2).getVolume(), boxes.get(i1).getVolume()));
 		boxOrders.add(shrinkingOrder);
 
+		// third order: shrinking by longest side
+		List<Integer> shrinkingLongestOrder = new ArrayList<>(base);
+		Collections.sort(shrinkingLongestOrder,
+				(i1, i2) -> Double.compare(boxes.get(i2).getLongestSide(), boxes.get(i1).getLongestSide()));
+		boxOrders.add(shrinkingLongestOrder);
+
 		// Remaining orders: random
 		for (int i = 2; i < populationSize; i++) {
 			List<Integer> order = new ArrayList<>(base);

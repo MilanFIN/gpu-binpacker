@@ -33,6 +33,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.CheckBox;
 import javafx.geometry.Pos;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -123,6 +124,7 @@ public class GuiApp extends Application {
 	private ComboBox<String> inputSourceCombo;
 	private TextField filePathField;
 	private File selectedCsvFile;
+	private Label csvStatusLabel;
 
 	NumberTextField binWidthField = new NumberTextField(30);
 	NumberTextField binHeightField = new NumberTextField(30);
@@ -134,16 +136,7 @@ public class GuiApp extends Application {
 		StackPane root = new StackPane();
 
 		// Controls - Main Window
-		VBox controls = new VBox(16);
-
-		Label binLabel = new Label("Bin dimensions:");
-
-		HBox binDimensionFields = new HBox(1);
-		binDimensionFields.setMaxWidth(200);
-		binDimensionFields.setAlignment(Pos.CENTER_LEFT);
-		binDimensionFields.getChildren().addAll(binWidthField, binHeightField, binDepthField);
-
-		controls.getChildren().addAll(binLabel, binDimensionFields);
+		VBox controls = new VBox(8);
 
 		// Input Source Selection
 		Label inputLabel = new Label("Input Source:");
@@ -168,6 +161,14 @@ public class GuiApp extends Application {
 			if (file != null) {
 				selectedCsvFile = file;
 				filePathField.setText(file.getName());
+				List<com.binpacker.lib.common.Box> boxes = loadBoxesFromCsv(file);
+				if (boxes.isEmpty()) {
+					csvStatusLabel.setText("Invalid CSV / No boxes found");
+					csvStatusLabel.setTextFill(Color.RED);
+				} else {
+					csvStatusLabel.setText("Found " + boxes.size() + " boxes");
+					csvStatusLabel.setTextFill(Color.GREEN);
+				}
 			}
 		});
 
@@ -181,7 +182,51 @@ public class GuiApp extends Application {
 		inputFileBox.setAlignment(Pos.CENTER_LEFT);
 		inputFileBox.getChildren().addAll(filePathField, browseButton);
 
-		controls.getChildren().addAll(inputLabel, inputSourceCombo, inputFileBox);
+		csvStatusLabel = new Label("");
+		controls.getChildren().addAll(inputLabel, inputSourceCombo, inputFileBox, csvStatusLabel);
+
+		Label binLabel = new Label("Bin dimensions:");
+
+		HBox binDimensionFields = new HBox(1);
+		binDimensionFields.setMaxWidth(200);
+		binDimensionFields.setAlignment(Pos.CENTER_LEFT);
+		binDimensionFields.getChildren().addAll(binWidthField, binHeightField, binDepthField);
+
+		controls.getChildren().addAll(binLabel, binDimensionFields);
+
+		// allowed rotations
+		Label rotationLabel = new Label("Allow boxes to rotate in axes:");
+		CheckBox rotX = new CheckBox("X");
+		rotX.setSelected(true);
+		CheckBox rotY = new CheckBox("Y");
+		rotY.setSelected(true);
+		CheckBox rotZ = new CheckBox("Z");
+		rotZ.setSelected(true);
+
+		HBox rotationBox = new HBox(10);
+		rotationBox.setAlignment(Pos.CENTER_LEFT);
+		rotationBox.getChildren().addAll(rotX, rotY, rotZ);
+		controls.getChildren().addAll(rotationLabel, rotationBox);
+
+		Label growingBinLabel = new Label("Use a single growing bin");
+		javafx.scene.control.CheckBox growingBinCheckBox = new javafx.scene.control.CheckBox();
+		growingBinCheckBox.setSelected(growingBin);
+		growingBinCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
+			growingBin = newValue;
+		});
+		HBox growingBinHBox = new javafx.scene.layout.HBox(10); // 10 is spacing
+		growingBinHBox.setAlignment(Pos.CENTER_LEFT);
+		Label axisLabel = new Label("Axis");
+		ComboBox<String> axisComboBox = new ComboBox<>();
+		axisComboBox.getItems().addAll("x", "y", "z");
+		axisComboBox.setValue("x");
+		axisComboBox.valueProperty().addListener((observable, oldValue, newValue) -> {
+			axis = newValue;
+		});
+
+		growingBinHBox.getChildren().addAll(growingBinLabel, growingBinCheckBox);
+		growingBinHBox.getChildren().addAll(axisLabel, axisComboBox);
+		controls.getChildren().add(growingBinHBox);
 
 		this.solverComboBox = new ComboBox<>();
 		this.solverComboBox.setConverter(new javafx.util.StringConverter<Object>() {
@@ -228,9 +273,7 @@ public class GuiApp extends Application {
 						new BestFitEMSReference()));
 		this.solverComboBox.setValue(this.solverComboBox.getItems().get(0)); // Set default to the first item
 
-		Button solveButton = new Button("Solve");
-		Button exportButton = new Button("Export currently visible solution");
-
+		Label solverOptions = new Label("Solver Options:");
 		Label generationsLabel = new Label("Generations:");
 		javafx.scene.control.TextField generationsField = new javafx.scene.control.TextField(
 				String.valueOf(generations));
@@ -274,32 +317,16 @@ public class GuiApp extends Application {
 			}
 		});
 
-		controls.getChildren().addAll(generationsLabel, generationsField, populationLabel, populationField,
+		controls.getChildren().addAll(solverOptions, generationsLabel, generationsField, populationLabel,
+				populationField,
 				eliteCountLabel, eliteCountField);
 
-		Label growingBinLabel = new Label("Growing bin");
-		javafx.scene.control.CheckBox growingBinCheckBox = new javafx.scene.control.CheckBox();
-		growingBinCheckBox.setSelected(growingBin);
-		growingBinCheckBox.selectedProperty().addListener((observable, oldValue, newValue) -> {
-			growingBin = newValue;
-		});
-		HBox growingBinHBox = new javafx.scene.layout.HBox(10); // 10 is spacing
-		growingBinHBox.setAlignment(Pos.CENTER_LEFT);
-		Label axisLabel = new Label("Axis");
-		ComboBox<String> axisComboBox = new ComboBox<>();
-		axisComboBox.getItems().addAll("x", "y", "z");
-		axisComboBox.setValue("x");
-		axisComboBox.valueProperty().addListener((observable, oldValue, newValue) -> {
-			axis = newValue;
-		});
-
-		growingBinHBox.getChildren().addAll(growingBinLabel, growingBinCheckBox);
-		growingBinHBox.getChildren().addAll(axisLabel, axisComboBox);
-		controls.getChildren().add(growingBinHBox);
+		statusLabel = new Label("Ready");
+		controls.getChildren().add(this.solverComboBox);
 
 		List<OpenCLDevice> devices = JOCLHelper.getAvailableDevices();
 		System.out.println("Available devices: " + devices);
-		Label openCLDeviceLabel = new Label("OpenCL Device:");
+		Label openCLDeviceLabel = new Label("(Optional) OpenCL Device:");
 		HBox openCLDeviceHBox = new javafx.scene.layout.HBox(10); // 10 is spacing
 		openCLDeviceHBox.setAlignment(Pos.CENTER_LEFT);
 		this.openCLDeviceComboBox = new ComboBox<>();
@@ -341,8 +368,12 @@ public class GuiApp extends Application {
 		controls.getChildren().add(openCLDeviceLabel);
 		controls.getChildren().add(openCLDeviceHBox);
 
-		statusLabel = new Label("Ready");
-		controls.getChildren().add(this.solverComboBox);
+		Button solveButton = new Button("Start solver");
+		Button exportButton = new Button("Export currently visible solution");
+		// Event Handling
+		solveButton.setOnAction(e -> runSolver());
+		exportButton.setOnAction(e -> exportSolution());
+
 		controls.getChildren().add(solveButton);
 		controls.getChildren().add(exportButton);
 		controls.getChildren().add(statusLabel);
@@ -352,10 +383,6 @@ public class GuiApp extends Application {
 		controls.setMaxWidth(VBox.USE_PREF_SIZE);
 
 		root.getChildren().add(controls);
-
-		// Event Handling
-		solveButton.setOnAction(e -> runSolver());
-		exportButton.setOnAction(e -> exportSolution());
 
 		Scene scene = new Scene(root, 400, 700); // Smaller size for controls only
 		primaryStage.setTitle("Bin packing solver - Controls");
