@@ -16,36 +16,37 @@ public class PlacementUtils {
 	}
 
 	public static Box findFit(Box box, Space space) {
-		// Check all 6 orientations (permutations of x, y, z)
+		return findFit(box, space, null);
+	}
 
-		// 1. (x, y, z)
+	public static Box findFit(Box box, Space space, List<Integer> rotations) {
+		// Always check default orientation (x, y, z)
 		if (box.size.x <= space.w && box.size.y <= space.h && box.size.z <= space.d) {
 			return box;
 		}
 
-		// 2. (x, z, y)
-		if (box.size.x <= space.w && box.size.z <= space.h && box.size.y <= space.d) {
-			return new Box(box.id, box.position, new Point3f(box.size.x, box.size.z, box.size.y));
+		if (rotations == null || rotations.isEmpty()) {
+			return null;
 		}
 
-		// 3. (y, x, z)
-		if (box.size.y <= space.w && box.size.x <= space.h && box.size.z <= space.d) {
-			return new Box(box.id, box.position, new Point3f(box.size.y, box.size.x, box.size.z));
-		}
+		boolean checkX = rotations.contains(0);
+		boolean checkY = rotations.contains(1);
+		boolean checkZ = rotations.contains(2);
 
-		// 4. (y, z, x)
-		if (box.size.y <= space.w && box.size.z <= space.h && box.size.x <= space.d) {
-			return new Box(box.id, box.position, new Point3f(box.size.y, box.size.z, box.size.x));
+		if (checkX) {
+			if (box.size.x <= space.w && box.size.z <= space.h && box.size.y <= space.d) {
+				return new Box(box.id, box.position, new Point3f(box.size.x, box.size.z, box.size.y));
+			}
 		}
-
-		// 5. (z, x, y)
-		if (box.size.z <= space.w && box.size.x <= space.h && box.size.y <= space.d) {
-			return new Box(box.id, box.position, new Point3f(box.size.z, box.size.x, box.size.y));
+		if (checkY) {
+			if (box.size.y <= space.w && box.size.x <= space.h && box.size.z <= space.d) {
+				return new Box(box.id, box.position, new Point3f(box.size.y, box.size.x, box.size.z));
+			}
 		}
-
-		// 6. (z, y, x)
-		if (box.size.z <= space.w && box.size.y <= space.h && box.size.x <= space.d) {
-			return new Box(box.id, box.position, new Point3f(box.size.z, box.size.y, box.size.x));
+		if (checkZ) {
+			if (box.size.z <= space.w && box.size.y <= space.h && box.size.x <= space.d) {
+				return new Box(box.id, box.position, new Point3f(box.size.z, box.size.y, box.size.x));
+			}
 		}
 
 		return null;

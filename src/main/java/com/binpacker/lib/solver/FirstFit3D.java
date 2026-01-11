@@ -15,12 +15,14 @@ public class FirstFit3D implements SolverInterface {
 	private Bin binTemplate;
 	private boolean growingBin;
 	private String growAxis;
+	private List<Integer> rotationAxes;
 
 	@Override
 	public void init(SolverProperties properties) {
 		this.binTemplate = properties.bin;
 		this.growingBin = properties.growingBin;
 		this.growAxis = properties.growAxis;
+		this.rotationAxes = properties.rotationAxes;
 	}
 
 	@Override
@@ -53,7 +55,7 @@ public class FirstFit3D implements SolverInterface {
 			for (Bin bin : activeBins) {
 				for (int i = 0; i < bin.freeSpaces.size(); i++) {
 					Space space = bin.freeSpaces.get(i);
-					Box fittedBox = PlacementUtils.findFit(box, space);
+					Box fittedBox = PlacementUtils.findFit(box, space, rotationAxes);
 					if (fittedBox != null) {
 						PlacementUtils.placeBoxBSP(fittedBox, bin, i);
 						placed = true;
@@ -67,7 +69,7 @@ public class FirstFit3D implements SolverInterface {
 			if (!growingBin && !placed) {
 				Bin newBin = new Bin(activeBins.size(), binTemplate.w, binTemplate.h, binTemplate.d);
 				activeBins.add(newBin);
-				Box fittedBox = PlacementUtils.findFit(box, newBin.freeSpaces.get(0));
+				Box fittedBox = PlacementUtils.findFit(box, newBin.freeSpaces.get(0), rotationAxes);
 				if (fittedBox != null) {
 					PlacementUtils.placeBoxBSP(fittedBox, newBin, 0);
 				} else {

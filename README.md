@@ -1,7 +1,7 @@
 # 3D binpacker with gpu acceleration and a genetic algorithm
 
-A to be modular, extendable, multi stage, multi heuristic 3d binpacker.
-The packing consists of two stages: the packing heuristic and an optimizer that 
+A multi stage & multi heuristic 3d binpacker.
+The packing consists of two stages: the packing algorithm and an optimizer that 
 searches for a better solution by iterating over different packing orders.
 
 ![demo packing result](https://raw.githubusercontent.com/MilanFIN/GA-binpacker/refs/heads/main/images/3dbin.png)
