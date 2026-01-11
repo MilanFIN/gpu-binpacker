@@ -321,6 +321,7 @@ public class GuiApp extends Application {
 			}
 		});
 
+		controls.getChildren().add(new javafx.scene.control.Separator());
 		controls.getChildren().addAll(solverOptions, generationsLabel, generationsField, populationLabel,
 				populationField,
 				eliteCountLabel, eliteCountField);
@@ -369,6 +370,7 @@ public class GuiApp extends Application {
 		});
 
 		openCLDeviceHBox.getChildren().addAll(this.openCLDeviceComboBox, testButton);
+		controls.getChildren().add(new javafx.scene.control.Separator());
 		controls.getChildren().add(openCLDeviceLabel);
 		controls.getChildren().add(openCLDeviceHBox);
 
@@ -378,6 +380,7 @@ public class GuiApp extends Application {
 		solveButton.setOnAction(e -> runSolver());
 		exportButton.setOnAction(e -> exportSolution());
 
+		controls.getChildren().add(new javafx.scene.control.Separator());
 		controls.getChildren().add(solveButton);
 		controls.getChildren().add(exportButton);
 		controls.getChildren().add(statusLabel);
@@ -579,11 +582,15 @@ public class GuiApp extends Application {
 		Optimizer<?> optimizer;
 
 		List<Integer> rotationAxes = new ArrayList<>();
-		if (rotX.isSelected()) rotationAxes.add(0);
-		if (rotY.isSelected()) rotationAxes.add(1);
-		if (rotZ.isSelected()) rotationAxes.add(2);
-		
-		SolverProperties properties = new SolverProperties(bin, growingBin, axis, rotationAxes, openCLDeviceComboBox.getValue());
+		if (rotX.isSelected())
+			rotationAxes.add(0);
+		if (rotY.isSelected())
+			rotationAxes.add(1);
+		if (rotZ.isSelected())
+			rotationAxes.add(2);
+
+		SolverProperties properties = new SolverProperties(bin, growingBin, axis, rotationAxes,
+				openCLDeviceComboBox.getValue());
 
 		if (selectedSolver instanceof ParallelSolverInterface) {
 			GPUOptimizer gpuOptimizer = new GPUOptimizer();

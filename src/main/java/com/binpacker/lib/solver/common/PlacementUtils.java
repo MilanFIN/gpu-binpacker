@@ -80,6 +80,32 @@ public class PlacementUtils {
 
 	}
 
+	public static void placeBoxBSP2D(Box box, Bin bin, int spaceIndex) {
+		Space space = bin.freeSpaces.get(spaceIndex);
+
+		Box placedBox = new Box(
+				box.id,
+				new Point3f(space.x, space.y, space.z),
+				new Point3f(box.size.x, box.size.y, box.size.z));
+		bin.boxes.add(placedBox);
+
+		bin.freeSpaces.remove(spaceIndex);
+
+		Space right = new Space(space.x + box.size.x, space.y, space.z,
+				space.w - box.size.x, space.h, space.d);
+
+		Space top = new Space(space.x, space.y + box.size.y, space.z,
+				box.size.x, space.h - box.size.y, space.d);
+
+		// For 2D packing, we do NOT add the front space (Z-axis residual)
+		// This effectively prevents stacking on top of the placed box.
+
+		if (right.w > 0 && right.h > 0 && right.d > 0)
+			bin.freeSpaces.add(right);
+		if (top.w > 0 && top.h > 0 && top.d > 0)
+			bin.freeSpaces.add(top);
+	}
+
 	public static Box placeBoxEMS(Box box, Bin bin, int spaceIndex) {
 		Space space = bin.freeSpaces.get(spaceIndex);
 

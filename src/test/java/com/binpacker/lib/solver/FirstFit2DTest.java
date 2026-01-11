@@ -26,6 +26,8 @@ class FirstFit2DTest {
 		SolverProperties properties = new SolverProperties(binTemplate, false, "x", List.of(0, 1, 2));
 		solver.init(properties);
 		List<List<Box>> result = solver.solve(boxes);
+		System.out.println("Result: ");
+		System.out.println(result);
 
 		// both boxes were placed in the bin
 		assertEquals(2, result.get(0).size());
@@ -33,5 +35,9 @@ class FirstFit2DTest {
 		// list
 		assertEquals(result.get(0).get(0).id, boxes.get(0).id);
 		assertEquals(result.get(0).get(1).id, boxes.get(1).id);
+
+		// Verify Z position is 0 for 2D packing
+		assertEquals(0, result.get(0).get(0).position.z, 0.001);
+		assertEquals(0, result.get(0).get(1).position.z, 0.001);
 	}
 }

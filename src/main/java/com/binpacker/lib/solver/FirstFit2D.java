@@ -42,7 +42,7 @@ public class FirstFit2D implements SolverInterface {
 					break;
 			}
 		}
-		activeBins.add(new Bin(0, binTemplate.w, binTemplate.h));
+		activeBins.add(new Bin(0, binTemplate.w, binTemplate.h, binTemplate.d));
 
 		for (int b = 0; b < boxes.size(); b++) {
 			Box box = boxes.get(b);
@@ -52,7 +52,7 @@ public class FirstFit2D implements SolverInterface {
 					Space space = bin.freeSpaces.get(i);
 					Box fittedBox = PlacementUtils.findFit(box, space);
 					if (fittedBox != null) {
-						PlacementUtils.placeBoxBSP(fittedBox, bin, i);
+						PlacementUtils.placeBoxBSP2D(fittedBox, bin, i);
 						placed = true;
 						break;
 					}
@@ -62,11 +62,11 @@ public class FirstFit2D implements SolverInterface {
 			}
 
 			if (!growingBin && !placed) {
-				Bin newBin = new Bin(activeBins.size(), binTemplate.w, binTemplate.h);
+				Bin newBin = new Bin(activeBins.size(), binTemplate.w, binTemplate.h, binTemplate.d);
 				activeBins.add(newBin);
 				Box fittedBox = PlacementUtils.findFit(box, newBin.freeSpaces.get(0));
 				if (fittedBox != null) {
-					PlacementUtils.placeBoxBSP(fittedBox, newBin, 0);
+					PlacementUtils.placeBoxBSP2D(fittedBox, newBin, 0);
 				} else {
 					System.err.println("Box too big for bin: " + box);
 				}
