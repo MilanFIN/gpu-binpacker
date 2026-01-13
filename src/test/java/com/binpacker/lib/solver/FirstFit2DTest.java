@@ -10,8 +10,8 @@ import com.binpacker.lib.common.Bin;
 import com.binpacker.lib.common.Box;
 import com.binpacker.lib.common.Point3f;
 import com.binpacker.lib.common.Space;
-import com.binpacker.lib.solver.FirstFit2D;
 import com.binpacker.lib.solver.common.SolverProperties;
+import com.binpacker.lib.solver.cpusolvers.FirstFit2D;
 
 class FirstFit2DTest {
 

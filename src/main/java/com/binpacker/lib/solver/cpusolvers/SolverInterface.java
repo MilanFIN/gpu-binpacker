@@ -1,16 +1,14 @@
-package com.binpacker.lib.solver.parallelsolvers.solvers;
+package com.binpacker.lib.solver.cpusolvers;
 
 import java.util.List;
 
 import com.binpacker.lib.common.Box;
 import com.binpacker.lib.solver.common.SolverProperties;
 
-public interface ParallelSolverInterface {
-
+public interface SolverInterface {
 	void init(SolverProperties properties);
 
-	List<Double> solve(List<Box> boxes, List<List<Integer>> orders);
+	List<List<Box>> solve(List<Box> boxes);
 
 	void release();
-
 }

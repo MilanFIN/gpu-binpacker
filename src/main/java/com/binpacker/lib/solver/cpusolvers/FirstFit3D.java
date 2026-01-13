@@ -1,4 +1,4 @@
-package com.binpacker.lib.solver;
+package com.binpacker.lib.solver.cpusolvers;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,7 +10,7 @@ import com.binpacker.lib.common.Space;
 import com.binpacker.lib.solver.common.PlacementUtils;
 import com.binpacker.lib.solver.common.SolverProperties;
 
-public class FirstFit2D implements SolverInterface {
+public class FirstFit3D implements SolverInterface {
 
 	private Bin binTemplate;
 	private boolean growingBin;
@@ -38,23 +38,26 @@ public class FirstFit2D implements SolverInterface {
 				case "y":
 					binTemplate.h = Integer.MAX_VALUE;
 					break;
+				case "z":
+					binTemplate.d = Integer.MAX_VALUE;
+					break;
 				default:
 					System.err.println("Invalid growAxis specified: " + growAxis);
 					binTemplate.h = Integer.MAX_VALUE;
 					break;
 			}
 		}
+
 		activeBins.add(new Bin(0, binTemplate.w, binTemplate.h, binTemplate.d));
 
-		for (int b = 0; b < boxes.size(); b++) {
-			Box box = boxes.get(b);
+		for (Box box : boxes) {
 			boolean placed = false;
 			for (Bin bin : activeBins) {
 				for (int i = 0; i < bin.freeSpaces.size(); i++) {
 					Space space = bin.freeSpaces.get(i);
 					Box fittedBox = PlacementUtils.findFit(box, space, rotationAxes);
 					if (fittedBox != null) {
-						PlacementUtils.placeBoxBSP2D(fittedBox, bin, i);
+						PlacementUtils.placeBoxBSP(fittedBox, bin, i);
 						placed = true;
 						break;
 					}
@@ -68,7 +71,7 @@ public class FirstFit2D implements SolverInterface {
 				activeBins.add(newBin);
 				Box fittedBox = PlacementUtils.findFit(box, newBin.freeSpaces.get(0), rotationAxes);
 				if (fittedBox != null) {
-					PlacementUtils.placeBoxBSP2D(fittedBox, newBin, 0);
+					PlacementUtils.placeBoxBSP(fittedBox, newBin, 0);
 				} else {
 					System.err.println("Box too big for bin: " + box);
 				}
@@ -90,6 +93,13 @@ public class FirstFit2D implements SolverInterface {
 						maxY = Math.max(maxY, placedBox.position.y + placedBox.size.y);
 					}
 					activeBins.get(0).h = maxY;
+					break;
+				case "z":
+					float maxZ = 0;
+					for (Box placedBox : activeBins.get(0).boxes) {
+						maxZ = Math.max(maxZ, placedBox.position.z + placedBox.size.z);
+					}
+					activeBins.get(0).d = maxZ;
 					break;
 				default:
 					System.err.println("Invalid growAxis specified for final bin sizing: " + growAxis);

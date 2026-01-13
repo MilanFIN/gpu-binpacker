@@ -1,4 +1,4 @@
-package com.binpacker.lib.solver.parallelsolvers.solvers;
+package com.binpacker.lib.solver.parallelsolvers;
 
 import java.util.List;
 

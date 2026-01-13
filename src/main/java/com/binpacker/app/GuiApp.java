@@ -4,20 +4,17 @@ import com.binpacker.lib.common.Utils;
 import com.binpacker.lib.ocl.JOCLHelper;
 import com.binpacker.lib.optimizer.CPUOptimizer;
 import com.binpacker.lib.optimizer.Optimizer;
-import com.binpacker.lib.solver.BestFit3D;
-import com.binpacker.lib.solver.BestFitBSPOCL;
-import com.binpacker.lib.solver.FirstFit2D;
-import com.binpacker.lib.solver.FirstFit3D;
-import com.binpacker.lib.solver.SolverInterface;
 import com.binpacker.lib.solver.common.SolverProperties;
-import com.binpacker.lib.solver.BestFitEMS;
-import com.binpacker.lib.solver.BestFitEMSOCL;
-import com.binpacker.lib.solver.FFBSPOCL;
-import com.binpacker.lib.solver.parallelsolvers.solvers.GPUSolver;
-import com.binpacker.lib.solver.parallelsolvers.solvers.ParallelSolverInterface;
-import com.binpacker.lib.solver.parallelsolvers.solvers.FirstFitReference;
-import com.binpacker.lib.solver.parallelsolvers.solvers.BestFitReference;
-import com.binpacker.lib.solver.parallelsolvers.solvers.BestFitEMSReference;
+import com.binpacker.lib.solver.cpusolvers.BestFit3D;
+import com.binpacker.lib.solver.cpusolvers.BestFitEMS;
+import com.binpacker.lib.solver.cpusolvers.FirstFit2D;
+import com.binpacker.lib.solver.cpusolvers.FirstFit3D;
+import com.binpacker.lib.solver.cpusolvers.SolverInterface;
+import com.binpacker.lib.solver.parallelsolvers.BestFitEMSReference;
+import com.binpacker.lib.solver.parallelsolvers.BestFitReference;
+import com.binpacker.lib.solver.parallelsolvers.FirstFitReference;
+import com.binpacker.lib.solver.parallelsolvers.GPUSolver;
+import com.binpacker.lib.solver.parallelsolvers.ParallelSolverInterface;
 import com.binpacker.lib.optimizer.CPUOptimizer;
 import com.binpacker.lib.optimizer.GPUOptimizer;
 import com.binpacker.lib.ocl.OpenCLDevice;
@@ -248,12 +245,6 @@ public class GuiApp extends Application {
 					return "3D best fit bsp";
 				} else if (solver instanceof BestFitEMS) {
 					return "Best Fit EMS";
-				} else if (solver instanceof FFBSPOCL) {
-					return "FFBSP OpenCL";
-				} else if (solver instanceof BestFitBSPOCL) {
-					return "Best Fit BSP OpenCL";
-				} else if (solver instanceof BestFitEMSOCL) {
-					return "Best Fit EMS OpenCL";
 				} else if (solver instanceof GPUSolver) {
 					GPUSolver gpuSolver = (GPUSolver) solver;
 					return gpuSolver.getDisplayName();
@@ -268,7 +259,6 @@ public class GuiApp extends Application {
 			}
 		});
 		this.solverComboBox.getItems().addAll(new FirstFit3D(), new FirstFit2D(), new BestFit3D(), new BestFitEMS(),
-				new FFBSPOCL(), new BestFitBSPOCL(), new BestFitEMSOCL(),
 				new GPUSolver("firstfit_complete.cl.template", "guillotine_first_fit", "FirstFit GPU (Parallel)",
 						new FirstFitReference()),
 				new GPUSolver("bestfit_complete.cl.template", "guillotine_best_fit", "BestFit GPU (Parallel)",

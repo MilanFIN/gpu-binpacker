@@ -1,4 +1,4 @@
-package com.binpacker.lib.solver;
+package com.binpacker.lib.solver.cpusolvers;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,7 +10,7 @@ import com.binpacker.lib.common.Space;
 import com.binpacker.lib.solver.common.PlacementUtils;
 import com.binpacker.lib.solver.common.SolverProperties;
 
-public class FirstFit3D implements SolverInterface {
+public class BestFitEMS implements SolverInterface {
 
 	private Bin binTemplate;
 	private boolean growingBin;
@@ -53,29 +53,52 @@ public class FirstFit3D implements SolverInterface {
 		for (Box box : boxes) {
 			boolean placed = false;
 			for (Bin bin : activeBins) {
+				float bestScore = Float.MAX_VALUE;
+				Bin bestFitBin = null;
+				int bestSpaceIndex = -1;
+				Box bestFittedBox = null;
+
 				for (int i = 0; i < bin.freeSpaces.size(); i++) {
 					Space space = bin.freeSpaces.get(i);
 					Box fittedBox = PlacementUtils.findFit(box, space, rotationAxes);
 					if (fittedBox != null) {
-						PlacementUtils.placeBoxBSP(fittedBox, bin, i);
-						placed = true;
-						break;
+						float score = PlacementUtils.calculateScoreEMS(fittedBox, space);
+						if (score < bestScore) {
+							bestScore = score;
+							bestFitBin = bin;
+							bestSpaceIndex = i;
+							bestFittedBox = fittedBox;
+						}
 					}
 				}
-				if (placed)
-					break;
+
+				if (bestFittedBox != null) {
+					Box placedBox = PlacementUtils.placeBoxEMS(bestFittedBox, bestFitBin, bestSpaceIndex);
+					PlacementUtils.pruneCollidingSpacesEMS(placedBox, bestFitBin);
+					placed = true;
+
+					bin.utilCounter++;
+					if (bin.utilCounter > 10) {
+						PlacementUtils.pruneWrappedSpacesBinEMS(bin);
+						bin.utilCounter = 0;
+					}
+
+					break; // Break from the activeBins loop, as we've placed the box
+				}
+
 			}
 
-			if (!growingBin && !placed) {
+			if (!placed) {
 				Bin newBin = new Bin(activeBins.size(), binTemplate.w, binTemplate.h, binTemplate.d);
 				activeBins.add(newBin);
 				Box fittedBox = PlacementUtils.findFit(box, newBin.freeSpaces.get(0), rotationAxes);
 				if (fittedBox != null) {
-					PlacementUtils.placeBoxBSP(fittedBox, newBin, 0);
+					PlacementUtils.placeBoxEMS(fittedBox, newBin, 0);
 				} else {
 					System.err.println("Box too big for bin: " + box);
 				}
 			}
+
 		}
 
 		if (growingBin) {

@@ -1,4 +1,4 @@
-package com.binpacker.lib.solver;
+package com.binpacker.lib.solver.cpusolvers;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,7 +10,7 @@ import com.binpacker.lib.common.Space;
 import com.binpacker.lib.solver.common.PlacementUtils;
 import com.binpacker.lib.solver.common.SolverProperties;
 
-public class BestFitEMS implements SolverInterface {
+public class BestFit3D implements SolverInterface {
 
 	private Bin binTemplate;
 	private boolean growingBin;
@@ -47,58 +47,42 @@ public class BestFitEMS implements SolverInterface {
 					break;
 			}
 		}
-
 		activeBins.add(new Bin(0, binTemplate.w, binTemplate.h, binTemplate.d));
 
 		for (Box box : boxes) {
-			boolean placed = false;
-			for (Bin bin : activeBins) {
-				float bestScore = Float.MAX_VALUE;
-				Bin bestFitBin = null;
-				int bestSpaceIndex = -1;
-				Box bestFittedBox = null;
+			float bestScore = Float.MAX_VALUE;
+			Bin bestBin = null;
+			int bestSpaceIndex = -1;
+			Box bestBox = null;
 
+			for (Bin bin : activeBins) {
 				for (int i = 0; i < bin.freeSpaces.size(); i++) {
 					Space space = bin.freeSpaces.get(i);
 					Box fittedBox = PlacementUtils.findFit(box, space, rotationAxes);
 					if (fittedBox != null) {
-						float score = PlacementUtils.calculateScoreEMS(fittedBox, space);
+						float score = calculateScore(fittedBox, space);
 						if (score < bestScore) {
 							bestScore = score;
-							bestFitBin = bin;
+							bestBin = bin;
 							bestSpaceIndex = i;
-							bestFittedBox = fittedBox;
+							bestBox = fittedBox;
 						}
 					}
 				}
-
-				if (bestFittedBox != null) {
-					Box placedBox = PlacementUtils.placeBoxEMS(bestFittedBox, bestFitBin, bestSpaceIndex);
-					PlacementUtils.pruneCollidingSpacesEMS(placedBox, bestFitBin);
-					placed = true;
-
-					bin.utilCounter++;
-					if (bin.utilCounter > 10) {
-						PlacementUtils.pruneWrappedSpacesBinEMS(bin);
-						bin.utilCounter = 0;
-					}
-
-					break; // Break from the activeBins loop, as we've placed the box
-				}
-
 			}
 
-			if (!placed) {
+			if (bestBin != null) {
+				PlacementUtils.placeBoxBSP(bestBox, bestBin, bestSpaceIndex);
+			} else {
 				Bin newBin = new Bin(activeBins.size(), binTemplate.w, binTemplate.h, binTemplate.d);
 				activeBins.add(newBin);
 				Box fittedBox = PlacementUtils.findFit(box, newBin.freeSpaces.get(0), rotationAxes);
 				if (fittedBox != null) {
-					PlacementUtils.placeBoxEMS(fittedBox, newBin, 0);
+					PlacementUtils.placeBoxBSP(fittedBox, newBin, 0);
 				} else {
 					System.err.println("Box too big for bin: " + box);
 				}
 			}
-
 		}
 
 		if (growingBin) {
@@ -139,6 +123,19 @@ public class BestFitEMS implements SolverInterface {
 
 	public void release() {
 		// not used by this
+	}
+
+	private float calculateScore(Box box, Space space) {
+		float spaceVol = space.w * space.h * space.d;
+		float boxVol = box.size.x * box.size.y * box.size.z;
+		float wastedSpaceScore = spaceVol - boxVol;
+
+		// Add a component for distance from origin (smaller x, y, z is better)
+		// Assuming space.x, space.y, space.z are non-negative.
+		float distanceScore = space.x + space.y + space.z;
+
+		return wastedSpaceScore + distanceScore;
+
 	}
 
 }

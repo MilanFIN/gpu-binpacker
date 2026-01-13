@@ -10,7 +10,7 @@ import java.util.List;
 import com.binpacker.lib.common.Bin;
 import com.binpacker.lib.common.Box;
 import com.binpacker.lib.common.Point3f;
-import com.binpacker.lib.solver.parallelsolvers.solvers.BestFitEMSReference;
+import com.binpacker.lib.solver.parallelsolvers.BestFitEMSReference;
 
 class BestFitEMSReferenceTest {
 

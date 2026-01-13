@@ -6,9 +6,9 @@ import java.util.List;
 
 import com.binpacker.lib.common.Bin;
 import com.binpacker.lib.common.Box;
-import com.binpacker.lib.solver.parallelsolvers.solvers.GPUSolver;
-import com.binpacker.lib.solver.parallelsolvers.solvers.ParallelSolverInterface;
-import com.binpacker.lib.solver.parallelsolvers.solvers.ReferenceSolver;
+import com.binpacker.lib.solver.parallelsolvers.GPUSolver;
+import com.binpacker.lib.solver.parallelsolvers.ParallelSolverInterface;
+import com.binpacker.lib.solver.parallelsolvers.ReferenceSolver;
 
 public class GPUOptimizer extends Optimizer<ParallelSolverInterface> {
 

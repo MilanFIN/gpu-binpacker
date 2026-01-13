@@ -1,4 +1,4 @@
-package com.binpacker.lib.solver.parallelsolvers.solvers;
+package com.binpacker.lib.solver.parallelsolvers;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -146,7 +146,7 @@ public class BestFitReference implements ReferenceSolver {
 
 					if (w <= sp.w && h <= sp.h && d <= sp.d) {
 						newBinOrientation = o;
-						//break; // Use first fitting orientation
+						// break; // Use first fitting orientation
 					}
 				}
 

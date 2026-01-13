@@ -9,7 +9,7 @@ import java.util.function.Supplier;
 
 import com.binpacker.lib.common.Bin;
 import com.binpacker.lib.common.Box;
-import com.binpacker.lib.solver.SolverInterface;
+import com.binpacker.lib.solver.cpusolvers.SolverInterface;
 
 public abstract class Optimizer<S> {
 
