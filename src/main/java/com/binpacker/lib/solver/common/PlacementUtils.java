@@ -35,17 +35,17 @@ public class PlacementUtils {
 
 		if (checkX) {
 			if (box.size.x <= space.w && box.size.z <= space.h && box.size.y <= space.d) {
-				return new Box(box.id, box.position, new Point3f(box.size.x, box.size.z, box.size.y));
+				return new Box(box.id, box.position, new Point3f(box.size.x, box.size.z, box.size.y), box.weight);
 			}
 		}
 		if (checkY) {
 			if (box.size.y <= space.w && box.size.x <= space.h && box.size.z <= space.d) {
-				return new Box(box.id, box.position, new Point3f(box.size.y, box.size.x, box.size.z));
+				return new Box(box.id, box.position, new Point3f(box.size.y, box.size.x, box.size.z), box.weight);
 			}
 		}
 		if (checkZ) {
 			if (box.size.z <= space.w && box.size.y <= space.h && box.size.x <= space.d) {
-				return new Box(box.id, box.position, new Point3f(box.size.z, box.size.y, box.size.x));
+				return new Box(box.id, box.position, new Point3f(box.size.z, box.size.y, box.size.x), box.weight);
 			}
 		}
 
@@ -59,7 +59,9 @@ public class PlacementUtils {
 				box.id,
 				new Point3f(space.x, space.y, space.z),
 				new Point3f(box.size.x, box.size.y, box.size.z));
+		placedBox.weight = box.weight; // Preserve weight from input box
 		bin.boxes.add(placedBox);
+		bin.weight += placedBox.weight; // Update bin's total weight
 
 		bin.freeSpaces.remove(spaceIndex);
 
@@ -88,7 +90,9 @@ public class PlacementUtils {
 				box.id,
 				new Point3f(space.x, space.y, space.z),
 				new Point3f(box.size.x, box.size.y, box.size.z));
+		placedBox.weight = box.weight; // Preserve weight from input box
 		bin.boxes.add(placedBox);
+		bin.weight += placedBox.weight; // Update bin's total weight
 
 		bin.freeSpaces.remove(spaceIndex);
 
@@ -114,7 +118,9 @@ public class PlacementUtils {
 				box.id,
 				new Point3f(space.x, space.y, space.z),
 				new Point3f(box.size.x, box.size.y, box.size.z));
+		placedBox.weight = box.weight; // Preserve weight from input box
 		bin.boxes.add(placedBox);
+		bin.weight += placedBox.weight; // Update bin's total weight
 
 		unorderedRemoveSpace(bin, spaceIndex);
 

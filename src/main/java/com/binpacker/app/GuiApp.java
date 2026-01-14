@@ -810,10 +810,12 @@ public class GuiApp extends Application {
 			float width = random.nextInt(8) + 4;
 			float height = random.nextInt(8) + 4;
 			float depth = random.nextInt(8) + 4;
+			float weight = random.nextInt(10) + 1;
 			com.binpacker.lib.common.Box box = new com.binpacker.lib.common.Box(
 					new com.binpacker.lib.common.Point3f(0, 0, 0),
 					new com.binpacker.lib.common.Point3f(width, height, depth));
 			box.id = i;
+			box.weight = weight;
 			boxes.add(box);
 		}
 		return boxes;

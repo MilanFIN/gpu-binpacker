@@ -16,6 +16,7 @@ public class BestFitEMS implements SolverInterface {
 	private boolean growingBin;
 	private String growAxis;
 	private List<Integer> rotationAxes;
+	private float weightLimit;
 
 	@Override
 	public void init(SolverProperties properties) {
@@ -23,6 +24,7 @@ public class BestFitEMS implements SolverInterface {
 		this.growingBin = properties.growingBin;
 		this.growAxis = properties.growAxis;
 		this.rotationAxes = properties.rotationAxes;
+		this.weightLimit = properties.weight;
 	}
 
 	@Override
@@ -53,6 +55,10 @@ public class BestFitEMS implements SolverInterface {
 		for (Box box : boxes) {
 			boolean placed = false;
 			for (Bin bin : activeBins) {
+				// Skip bin if weight limit would be exceeded
+				if (weightLimit > 0 && bin.weight + box.weight > weightLimit) {
+					continue;
+				}
 				float bestScore = Float.MAX_VALUE;
 				Bin bestFitBin = null;
 				int bestSpaceIndex = -1;

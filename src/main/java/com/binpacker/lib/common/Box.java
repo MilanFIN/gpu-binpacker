@@ -6,6 +6,13 @@ public class Box {
 	public Point3f size;
 	public float weight = 0;
 
+	public Box(int id, Point3f position, Point3f size, float weight) {
+		this.id = id;
+		this.position = position;
+		this.size = size;
+		this.weight = weight;
+	}
+
 	public Box(int id, Point3f position, Point3f size) {
 		this.id = id;
 		this.position = position;
@@ -19,7 +26,7 @@ public class Box {
 
 	@Override
 	public String toString() {
-		return String.format("Box(pos=%s, size=%s)", position, size);
+		return String.format("Box(pos=%s, size=%s, weight=%s)", position, size, weight);
 	}
 
 	public double getVolume() {
