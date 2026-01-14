@@ -9,7 +9,7 @@ public interface Utils {
 			List<Box> bin = bins.get(i);
 			for (int j = 0; j < bin.size(); j++) {
 				Box box = bin.get(j);
-				csv += i + "," + j + "," + box.position.x + "," + box.position.y + "," + box.position.z + ","
+				csv += i + "," + box.id + "," + box.position.x + "," + box.position.y + "," + box.position.z + ","
 						+ box.size.x + "," + box.size.y + "," + box.size.z + "\n";
 			}
 		}

@@ -97,7 +97,7 @@ Bin,Box,x,y,z,w,h,d
 ### Fields
 
 - **Bin** (int): Bin index (0-based)
-- **Box** (int): Box index within the bin (0-based)
+- **Box** (int): Box id
 - **x** (float): X position of the box in the bin
 - **y** (float): Y position of the box in the bin
 - **z** (float): Z position of the box in the bin
@@ -109,11 +109,11 @@ Bin,Box,x,y,z,w,h,d
 
 ```csv
 Bin,Box,x,y,z,w,h,d
-0,0,0.0,0.0,0.0,7.0,6.0,7.0
+0,3,0.0,0.0,0.0,7.0,6.0,7.0
 0,1,7.0,0.0,0.0,9.0,7.0,6.0
 0,2,0.0,6.0,0.0,8.0,6.0,4.0
-1,0,0.0,0.0,0.0,8.0,6.0,8.0
-1,1,8.0,0.0,0.0,10.0,9.0,8.0
+1,4,0.0,0.0,0.0,8.0,6.0,8.0
+1,5,8.0,0.0,0.0,10.0,9.0,8.0
 ```
 
 ### Exporting Output CSV
