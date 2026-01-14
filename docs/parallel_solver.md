@@ -101,6 +101,7 @@ Initializes the solver with configuration. This is where you should:
 
 **Parameters:**
 - Same as CPU solver, but `properties.openCLDevice` is typically required
+- `properties.weight` - Weight limit for bin packing (available but not commonly used in current GPU kernels)
 
 #### `List<Double> solve(List<Box> boxes, List<List<Integer>> orders)`
 

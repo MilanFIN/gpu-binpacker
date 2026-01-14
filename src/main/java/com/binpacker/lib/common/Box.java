@@ -4,6 +4,7 @@ public class Box {
 	public int id = 0;
 	public Point3f position;
 	public Point3f size;
+	public float weight = 0;
 
 	public Box(int id, Point3f position, Point3f size) {
 		this.id = id;

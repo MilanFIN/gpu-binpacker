@@ -4,12 +4,13 @@ This document describes the CSV file formats used for input (box dimensions) and
 
 ## Input CSV Format
 
-The input CSV file defines the boxes to be packed. Each line represents one box with three dimensions.
+The input CSV file defines the boxes to be packed. Each line represents one box with three dimensions and an optional weight.
 
 ### Structure
 
 ```
 width,height,depth
+width,height,depth,weight
 ```
 
 ### Fields
@@ -17,20 +18,24 @@ width,height,depth
 - **width** (float): Width of the box (X dimension)
 - **height** (float): Height of the box (Y dimension)  
 - **depth** (float): Depth of the box (Z dimension)
+- **weight** (float, optional): Weight of the box (defaults to 0 if not specified)
 
 ### Example
 
 ```csv
-7,6,7
-9,7,6
-8,6,4
-8,6,8
-10,9,8
+7,6,7,5
+9,7,6,5
+8,6,4,5
+8,6,8,5
+10,9,8,5
 ```
+
+**Note**: The weight column (4th field) is optional. CSVs with only 3 columns (width, height, depth) are still supported for backward compatibility.
 
 ### Rules
 
-- Each line must contain exactly 3 comma-separated numeric values
+- Each line must contain at least 3 comma-separated numeric values
+- The 4th column (weight) is optional and defaults to 0 if not provided
 - Empty lines and lines starting with `#` are ignored
 - Leading/trailing whitespace is trimmed
 - Boxes are assigned sequential IDs starting from 0
@@ -56,11 +61,16 @@ private List<Box> loadBoxesFromCsv(File file) {
                     float w = Float.parseFloat(parts[0].trim());
                     float h = Float.parseFloat(parts[1].trim());
                     float d = Float.parseFloat(parts[2].trim());
+                    float weight = 0; // default weight
+                    if (parts.length >= 4) {
+                        weight = Float.parseFloat(parts[3].trim());
+                    }
                     
                     Box box = new Box(
                         new Point3f(0, 0, 0),
                         new Point3f(w, h, d));
                     box.id = idCounter++;
+                    box.weight = weight;
                     boxes.add(box);
                 } catch (NumberFormatException e) {
                     System.err.println("Skipping invalid line: " + line);

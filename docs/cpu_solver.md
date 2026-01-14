@@ -85,10 +85,11 @@ public interface SolverInterface {
 Called once to initialize the solver with configuration.
 
 **Parameters:**
-- `properties.bin` - Template bin with dimensions
+- `properties.bin` - Template bin with dimensions (also includes `weight` field)
 - `properties.growingBin` - If true, bin can grow indefinitely along one axis
 - `properties.growAxis` - Which axis to grow ("x", "y", or "z")
 - `properties.rotationAxes` - List of allowed rotation axes (0=X, 1=Y, 2=Z)
+- `properties.weight` - Weight limit for the bin (defaults to 0)
 - `properties.openCLDevice` - OpenCL device (can be null for CPU solvers)
 
 #### `List<List<Box>> solve(List<Box> boxes)`
@@ -103,8 +104,9 @@ Performs the packing algorithm.
 
 **Important:**
 - Input boxes have `position` at (0,0,0) and only `size` is meaningful
+- Input boxes may have a `weight` field set (defaults to 0)
 - Output boxes must have both `position` and `size` set
-- Each box should maintain its original `id` field
+- Each box should maintain its original `id` and `weight` fields
 - Create new `Bin` instances as needed based on `binTemplate`
 
 #### `void release()`

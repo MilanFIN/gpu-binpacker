@@ -126,6 +126,7 @@ public class GuiApp extends Application {
 	NumberTextField binWidthField = new NumberTextField(30);
 	NumberTextField binHeightField = new NumberTextField(30);
 	NumberTextField binDepthField = new NumberTextField(30);
+	NumberTextField binWeightField = new NumberTextField(0);
 
 	private CheckBox rotX;
 	private CheckBox rotY;
@@ -188,10 +189,31 @@ public class GuiApp extends Application {
 
 		Label binLabel = new Label("Bin dimensions:");
 
-		HBox binDimensionFields = new HBox(1);
-		binDimensionFields.setMaxWidth(200);
+		// Create labeled fields for bin dimensions
+		Label xLabel = new Label("x");
+		VBox xBox = new VBox(2);
+		xBox.setAlignment(Pos.CENTER);
+		xBox.getChildren().addAll(xLabel, binWidthField);
+
+		Label yLabel = new Label("y");
+		VBox yBox = new VBox(2);
+		yBox.setAlignment(Pos.CENTER);
+		yBox.getChildren().addAll(yLabel, binHeightField);
+
+		Label zLabel = new Label("z");
+		VBox zBox = new VBox(2);
+		zBox.setAlignment(Pos.CENTER);
+		zBox.getChildren().addAll(zLabel, binDepthField);
+
+		Label weightLimitLabel = new Label("weight limit");
+		VBox weightBox = new VBox(2);
+		weightBox.setAlignment(Pos.CENTER);
+		weightBox.getChildren().addAll(weightLimitLabel, binWeightField);
+
+		HBox binDimensionFields = new HBox(5);
+		binDimensionFields.setMaxWidth(300);
 		binDimensionFields.setAlignment(Pos.CENTER_LEFT);
-		binDimensionFields.getChildren().addAll(binWidthField, binHeightField, binDepthField);
+		binDimensionFields.getChildren().addAll(xBox, yBox, zBox, weightBox);
 
 		controls.getChildren().addAll(binLabel, binDimensionFields);
 
@@ -580,7 +602,7 @@ public class GuiApp extends Application {
 			rotationAxes.add(2);
 
 		SolverProperties properties = new SolverProperties(bin, growingBin, axis, rotationAxes,
-				openCLDeviceComboBox.getValue());
+				openCLDeviceComboBox.getValue(), binWeightField.getValue());
 
 		if (selectedSolver instanceof ParallelSolverInterface) {
 			GPUOptimizer gpuOptimizer = new GPUOptimizer();
@@ -603,7 +625,7 @@ public class GuiApp extends Application {
 					com.binpacker.lib.common.Bin freshBin = new com.binpacker.lib.common.Bin(
 							bin.index, bin.w, bin.h, bin.d);
 					SolverProperties freshProps = new SolverProperties(freshBin, growingBin, axis, rotationAxes,
-							openCLDeviceComboBox.getValue());
+							openCLDeviceComboBox.getValue(), binWeightField.getValue());
 					s.init(freshProps);
 					return s;
 				} catch (Exception ex) {
@@ -814,11 +836,16 @@ public class GuiApp extends Application {
 						float w = Float.parseFloat(parts[0].trim());
 						float h = Float.parseFloat(parts[1].trim());
 						float d = Float.parseFloat(parts[2].trim());
+						float weight = 0; // default weight
+						if (parts.length >= 4) {
+							weight = Float.parseFloat(parts[3].trim());
+						}
 
 						com.binpacker.lib.common.Box box = new com.binpacker.lib.common.Box(
 								new com.binpacker.lib.common.Point3f(0, 0, 0), // Initial position 0
 								new com.binpacker.lib.common.Point3f(w, h, d));
 						box.id = idCounter++;
+						box.weight = weight;
 						boxes.add(box);
 					} catch (NumberFormatException e) {
 						System.err.println("Skipping invalid line: " + line);

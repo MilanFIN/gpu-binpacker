@@ -11,6 +11,7 @@ public class Bin {
 	public float w;
 	public float h;
 	public float d;
+	public float weight = 0;
 
 	public Bin(int index, float w, float h, float d) {
 		this.index = index;
