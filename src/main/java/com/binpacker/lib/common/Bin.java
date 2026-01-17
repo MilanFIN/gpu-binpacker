@@ -12,6 +12,7 @@ public class Bin {
 	public float h;
 	public float d;
 	public float weight = 0;
+	public float maxWeight = 0;
 
 	public Bin(int index, float w, float h, float d) {
 		this.index = index;
@@ -23,6 +24,11 @@ public class Bin {
 
 	public Bin(int index, float w, float h) {
 		this(index, w, h, 0);
+	}
+
+	public Bin(int index, float w, float h, float d, float maxWeight) {
+		this(index, w, h, d);
+		this.maxWeight = maxWeight;
 	}
 
 	public Bin(int index, Box binTemplate) {

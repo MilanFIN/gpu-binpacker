@@ -19,7 +19,7 @@ public class BestFitEMSReference implements ReferenceSolver {
 		List<Bin> activeBins = new ArrayList<>();
 
 		// Initialize first bin
-		activeBins.add(new Bin(0, binTemplate.w, binTemplate.h, binTemplate.d));
+		activeBins.add(new Bin(0, binTemplate.w, binTemplate.h, binTemplate.d, binTemplate.maxWeight));
 
 		// Iterate through boxes in the given order
 		for (int boxIndex : order) {
@@ -29,7 +29,7 @@ public class BestFitEMSReference implements ReferenceSolver {
 			// Note: The kernel uses struct Box { w, h, d }. Code below uses lib.common.Box.
 			// We'll update the position of this box copy when placed.
 			Box box = new Box(originalBox.id, new Point3f(0, 0, 0),
-					new Point3f(originalBox.size.x, originalBox.size.y, originalBox.size.z));
+					new Point3f(originalBox.size.x, originalBox.size.y, originalBox.size.z), originalBox.weight);
 
 			boolean placed = false;
 
@@ -55,6 +55,12 @@ public class BestFitEMSReference implements ReferenceSolver {
 			// Matches Java: Iterate all current bins
 			for (int b = 0; b < activeBins.size(); b++) {
 				Bin bin = activeBins.get(b);
+
+				// Skip bin if weight limit would be exceeded
+				if (bin.maxWeight > 0 && bin.weight + box.weight > bin.maxWeight) {
+					continue;
+				}
+
 				List<Space> spaces = bin.freeSpaces;
 
 				for (int s = 0; s < spaces.size(); s++) {
@@ -121,6 +127,7 @@ public class BestFitEMSReference implements ReferenceSolver {
 				box.position.y = boxY;
 				box.position.z = boxZ;
 				bin.boxes.add(box);
+				bin.weight += box.weight;
 
 				// Remove the used space
 				// Kernel: spaces[base + s] = spaces[base + space_count[b]]; decrease count;
@@ -303,7 +310,8 @@ public class BestFitEMSReference implements ReferenceSolver {
 				float boxH = orientations[newBinOrientation][1];
 				float boxD = orientations[newBinOrientation][2];
 
-				Bin newBin = new Bin(activeBins.size(), binTemplate.w, binTemplate.h, binTemplate.d);
+				Bin newBin = new Bin(activeBins.size(), binTemplate.w, binTemplate.h, binTemplate.d,
+						binTemplate.maxWeight);
 				activeBins.add(newBin);
 				List<Space> spaces = newBin.freeSpaces;
 				spaces.clear(); // remove initial default space if any, we build manually like kernel
@@ -316,6 +324,7 @@ public class BestFitEMSReference implements ReferenceSolver {
 				box.position.y = 0;
 				box.position.z = 0;
 				newBin.boxes.add(box);
+				newBin.weight += box.weight;
 
 				// Initial spaces (EMS style - maximal) around the box at 0,0,0
 				// Right

@@ -11,6 +11,7 @@
 
 typedef struct {
     float w, h, d;
+    float weight;
 } Box;
 
 typedef struct {
@@ -61,7 +62,8 @@ __kernel void best_fit_ems(
 
     float bin_w,
     float bin_h,
-    float bin_d
+    float bin_d,
+    float bin_weight_limit
 ) {
     int gid = get_global_id(0);
 
@@ -73,6 +75,7 @@ __kernel void best_fit_ems(
     int space_count[MAX_BINS];
 
     float used_volume[MAX_BINS];
+    float bin_weights[MAX_BINS];
     int bins_used = 1;
 
     // ----------------------------------
@@ -81,6 +84,7 @@ __kernel void best_fit_ems(
 
     space_count[0] = 1;
     used_volume[0] = 0.0f;
+    bin_weights[0] = 0.0f;
 
     spaces[0] = (Space){
         0.0f, 0.0f, 0.0f,
@@ -90,6 +94,7 @@ __kernel void best_fit_ems(
     for (int b = 1; b < MAX_BINS; b++) {
         space_count[b] = 0;
         used_volume[b] = 0.0f;
+        bin_weights[b] = 0.0f;
     }
 
     // ----------------------------------
@@ -121,6 +126,12 @@ __kernel void best_fit_ems(
 
         // 1. Find Best Fit
         for (int b = 0; b < bins_used; b++) { // Search all active bins
+            
+             // Check weight limit
+            if (bin_weight_limit > 0 && bin_weights[b] + box.weight > bin_weight_limit) {
+                continue;
+            }
+
             int base = b * MAX_SPACES_PER_BIN;
 
             for (int s = 0; s < space_count[b]; s++) {
@@ -181,6 +192,7 @@ __kernel void best_fit_ems(
             float box_z = sp.z;
 
             used_volume[b] += box_w * box_h * box_d;
+            bin_weights[b] += box.weight;
 
             // Remove the used space (swap with last)
             space_count[b]--;
@@ -312,6 +324,7 @@ __kernel void best_fit_ems(
             float box_d = orientations[new_bin_orientation][2];
 
             used_volume[b] = box_w * box_h * box_d;
+            bin_weights[b] = box.weight;
             space_count[b] = 0;
 
             // Initial spaces (EMS style - maximal)

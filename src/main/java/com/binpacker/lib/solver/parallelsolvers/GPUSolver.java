@@ -88,12 +88,13 @@ public class GPUSolver implements ParallelSolverInterface {
 		}
 
 		// 1. Prepare data
-		float[] boxData = new float[numBoxes * 3];
+		float[] boxData = new float[numBoxes * 4];
 		for (int i = 0; i < numBoxes; i++) {
 			Box b = boxes.get(i);
-			boxData[i * 3 + 0] = b.size.x;
-			boxData[i * 3 + 1] = b.size.y;
-			boxData[i * 3 + 2] = b.size.z;
+			boxData[i * 4 + 0] = b.size.x;
+			boxData[i * 4 + 1] = b.size.y;
+			boxData[i * 4 + 2] = b.size.z;
+			boxData[i * 4 + 3] = b.weight;
 		}
 
 		int[] orderData = new int[numOrders * numBoxes];
@@ -127,6 +128,7 @@ public class GPUSolver implements ParallelSolverInterface {
 		clSetKernelArg(kernel, a++, Sizeof.cl_float, Pointer.to(new float[] { binTemplate.w }));
 		clSetKernelArg(kernel, a++, Sizeof.cl_float, Pointer.to(new float[] { binTemplate.h }));
 		clSetKernelArg(kernel, a++, Sizeof.cl_float, Pointer.to(new float[] { binTemplate.d }));
+		clSetKernelArg(kernel, a++, Sizeof.cl_float, Pointer.to(new float[] { binTemplate.maxWeight }));
 
 		// 4. Run kernel
 		long[] globalWorkSize = new long[] { numOrders };

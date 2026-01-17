@@ -589,6 +589,7 @@ public class GuiApp extends Application {
 
 		com.binpacker.lib.common.Bin bin = new com.binpacker.lib.common.Bin(0, binWidthField.getValue(),
 				binHeightField.getValue(), binDepthField.getValue());
+		bin.maxWeight = binWeightField.getValue();
 		// Solve
 		Object selectedSolver = solverComboBox.getValue();
 		Optimizer<?> optimizer;
@@ -624,6 +625,7 @@ public class GuiApp extends Application {
 					// Create a fresh bin copy to avoid shared mutable state
 					com.binpacker.lib.common.Bin freshBin = new com.binpacker.lib.common.Bin(
 							bin.index, bin.w, bin.h, bin.d);
+					freshBin.maxWeight = bin.maxWeight;
 					SolverProperties freshProps = new SolverProperties(freshBin, growingBin, axis, rotationAxes,
 							openCLDeviceComboBox.getValue(), binWeightField.getValue());
 					s.init(freshProps);

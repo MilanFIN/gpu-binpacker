@@ -16,14 +16,14 @@ public class FirstFitReference implements ReferenceSolver {
 		List<Bin> activeBins = new ArrayList<>();
 
 		// Initialize first bin
-		activeBins.add(new Bin(0, binTemplate.w, binTemplate.h, binTemplate.d));
+		activeBins.add(new Bin(0, binTemplate.w, binTemplate.h, binTemplate.d, binTemplate.maxWeight));
 
 		// Iterate through boxes in the given order
 		for (int boxIndex = 0; boxIndex < boxes.size(); boxIndex++) {
 			Box originalBox = boxes.get(order.get(boxIndex));
 			// Create a copy of the box to store placement
 			Box box = new Box(originalBox.id, new Point3f(0, 0, 0),
-					new Point3f(originalBox.size.x, originalBox.size.y, originalBox.size.z));
+					new Point3f(originalBox.size.x, originalBox.size.y, originalBox.size.z), originalBox.weight);
 
 			boolean placed = false;
 
@@ -44,6 +44,10 @@ public class FirstFitReference implements ReferenceSolver {
 
 			// Try to fit in existing bins (first-fit)
 			for (Bin bin : activeBins) {
+				// Skip if weight limit exceeded
+				if (bin.maxWeight > 0 && bin.weight + box.weight > bin.maxWeight) {
+					continue;
+				}
 				List<Space> spaces = bin.freeSpaces;
 
 				// Iterate spaces in bin
@@ -71,6 +75,7 @@ public class FirstFitReference implements ReferenceSolver {
 							box.position.y = sp.y;
 							box.position.z = sp.z;
 							bin.boxes.add(box);
+							bin.weight += box.weight;
 
 							// Remove used space (swap with last for efficiency, same as kernel)
 							int lastIdx = spaces.size() - 1;
@@ -114,7 +119,8 @@ public class FirstFitReference implements ReferenceSolver {
 			// If not placed, create new bin
 			if (!placed) {
 				// System.out.println("new bin at box: " + boxIndex);
-				Bin newBin = new Bin(activeBins.size(), binTemplate.w, binTemplate.h, binTemplate.d);
+				Bin newBin = new Bin(activeBins.size(), binTemplate.w, binTemplate.h, binTemplate.d,
+						binTemplate.maxWeight);
 				activeBins.add(newBin);
 
 				// boxIndex--;
@@ -126,6 +132,7 @@ public class FirstFitReference implements ReferenceSolver {
 					box.position.y = sp.y;
 					box.position.z = sp.z;
 					newBin.boxes.add(box);
+					newBin.weight += box.weight;
 
 					newBin.freeSpaces.remove(0);
 
