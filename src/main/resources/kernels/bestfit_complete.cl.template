@@ -32,7 +32,9 @@ __kernel void guillotine_best_fit(
     float bin_w,
     float bin_h,
     float bin_d,
-    float bin_weight_limit
+
+    float bin_weight_limit,
+    int rotation_mask
 ) {
     int gid = get_global_id(0);
 
@@ -83,14 +85,12 @@ __kernel void guillotine_best_fit(
         int best_orientation = -1;
         float best_score = INFINITY;
         
-        // Define all 6 orientations: (w,h,d), (w,d,h), (h,w,d), (h,d,w), (d,w,h), (d,h,w)
-        float orientations[6][3] = {
+        // Define valid orientations
+        float orientations[4][3] = {
             {box.w, box.h, box.d},  // 0: original
             {box.w, box.d, box.h},  // 1: rotate around x
             {box.h, box.w, box.d},  // 2: rotate around z
-            {box.h, box.d, box.w},  // 3: rotate around y
-            {box.d, box.w, box.h},  // 4: diagonal 1
-            {box.d, box.h, box.w}   // 5: diagonal 2
+            {box.d, box.h, box.w}   // 3: diagonal 2
         };
 
         // Search all bins for the best fit across all orientations
@@ -106,8 +106,13 @@ __kernel void guillotine_best_fit(
 
                 Space sp = spaces[base + s];
 
-                // Try all 6 orientations
-                for (int o = 0; o < 6; o++) {
+                // Try orientations
+                for (int o = 0; o < 4; o++) {
+                    // Filter rotations
+                    if (o == 1 && !(rotation_mask & 1)) continue;
+                    if (o == 2 && !(rotation_mask & 2)) continue;
+                    if (o == 3 && !(rotation_mask & 4)) continue;
+
                     float w = orientations[o][0];
                     float h = orientations[o][1];
                     float d = orientations[o][2];
@@ -225,7 +230,12 @@ __kernel void guillotine_best_fit(
             
             // Try all orientations for new bin, use first fitting
             int new_bin_orientation = 0;
-            for (int o = 0; o < 6; o++) {
+            for (int o = 0; o < 4; o++) {
+                 // Filter rotations
+                if (o == 1 && !(rotation_mask & 1)) continue;
+                if (o == 2 && !(rotation_mask & 2)) continue;
+                if (o == 3 && !(rotation_mask & 4)) continue;
+
                 float w = orientations[o][0];
                 float h = orientations[o][1];
                 float d = orientations[o][2];

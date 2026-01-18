@@ -29,10 +29,11 @@ class BestFitEMSReferenceTest {
 
 		Bin binTemplate = new Bin(0, 10, 10, 10);
 
-		List<Bin> resultBins = solver.solve(boxes, order, binTemplate);
+		List<Bin> result = solver.solve(boxes, order,
+				new com.binpacker.lib.solver.common.SolverProperties(binTemplate, false, "x", null));
 
-		assertEquals(1, resultBins.size(), "Should fit in one bin");
-		Bin bin = resultBins.get(0);
+		assertEquals(1, result.size(), "Should fit in one bin");
+		Bin bin = result.get(0);
 		assertEquals(2, bin.boxes.size(), "Should have 2 boxes");
 
 		// Verify Box 1 (First placed, typically at 0,0,0)

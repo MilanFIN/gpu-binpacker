@@ -23,6 +23,7 @@ public abstract class Optimizer<S> {
 	private int eliteCount;
 	protected boolean growingBin;
 	protected String growAxis;
+	protected List<Integer> rotationAxes;
 
 	protected boolean threaded;
 
@@ -34,7 +35,7 @@ public abstract class Optimizer<S> {
 
 	// ---- Initialize ----
 	public void initialize(S solverSource, List<Box> boxes, Bin bin, boolean growingBin,
-			String growAxis,
+			String growAxis, List<Integer> rotationAxes,
 			int populationSize,
 			int eliteCount, boolean threaded) {
 		this.solverSource = solverSource;
@@ -42,6 +43,7 @@ public abstract class Optimizer<S> {
 		this.bin = bin;
 		this.growingBin = growingBin;
 		this.growAxis = growAxis;
+		this.rotationAxes = rotationAxes;
 		this.populationSize = populationSize;
 		this.eliteCount = eliteCount;
 		this.threaded = threaded;

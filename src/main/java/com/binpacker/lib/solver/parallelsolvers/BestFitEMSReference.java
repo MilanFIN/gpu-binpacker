@@ -15,8 +15,11 @@ import com.binpacker.lib.common.Space;
 public class BestFitEMSReference implements ReferenceSolver {
 
 	@Override
-	public List<Bin> solve(List<Box> boxes, List<Integer> order, Bin binTemplate) {
+	public List<Bin> solve(List<Box> boxes, List<Integer> order,
+			com.binpacker.lib.solver.common.SolverProperties properties) {
 		List<Bin> activeBins = new ArrayList<>();
+		Bin binTemplate = properties.bin;
+		List<Integer> allowedRotations = properties.rotationAxes;
 
 		// Initialize first bin
 		activeBins.add(new Bin(0, binTemplate.w, binTemplate.h, binTemplate.d, binTemplate.maxWeight));
@@ -39,15 +42,13 @@ public class BestFitEMSReference implements ReferenceSolver {
 			int bestOrientation = -1;
 			double bestScore = Double.POSITIVE_INFINITY;
 
-			// Define all 6 orientations
+			// Define valid orientations
 			// {w, h, d}
 			float[][] orientations = {
 					{ box.size.x, box.size.y, box.size.z }, // 0: original
 					{ box.size.x, box.size.z, box.size.y }, // 1: rotate around x
 					{ box.size.y, box.size.x, box.size.z }, // 2: rotate around z
-					{ box.size.y, box.size.z, box.size.x }, // 3: rotate around y
-					{ box.size.z, box.size.x, box.size.y }, // 4: diagonal 1
-					{ box.size.z, box.size.y, box.size.x } // 5: diagonal 2
+					{ box.size.z, box.size.y, box.size.x } // 3: diagonal 2
 			};
 
 			// 1. Find Best Fit
@@ -66,8 +67,16 @@ public class BestFitEMSReference implements ReferenceSolver {
 				for (int s = 0; s < spaces.size(); s++) {
 					Space sp = spaces.get(s);
 
-					// Try all 6 orientations
-					for (int o = 0; o < 6; o++) {
+					// Try all orientations
+					for (int o = 0; o < 4; o++) {
+						// Filter rotations
+						if (o == 1 && (allowedRotations == null || !allowedRotations.contains(0)))
+							continue;
+						if (o == 2 && (allowedRotations == null || !allowedRotations.contains(1)))
+							continue;
+						if (o == 3 && (allowedRotations == null || !allowedRotations.contains(2)))
+							continue;
+
 						float w = orientations[o][0];
 						float h = orientations[o][1];
 						float d = orientations[o][2];
@@ -295,8 +304,16 @@ public class BestFitEMSReference implements ReferenceSolver {
 			// 3. New Bin
 			if (!placed) {
 				// Determine orientation for new bin (first that fits)
-				int newBinOrientation = 0; // default
-				for (int o = 0; o < 6; o++) {
+				int newBinOrientation = -1; // default
+				for (int o = 0; o < 4; o++) {
+					// Filter rotations
+					if (o == 1 && (allowedRotations == null || !allowedRotations.contains(0)))
+						continue;
+					if (o == 2 && (allowedRotations == null || !allowedRotations.contains(1)))
+						continue;
+					if (o == 3 && (allowedRotations == null || !allowedRotations.contains(2)))
+						continue;
+
 					float w = orientations[o][0];
 					float h = orientations[o][1];
 					float d = orientations[o][2];
@@ -306,38 +323,40 @@ public class BestFitEMSReference implements ReferenceSolver {
 					}
 				}
 
-				float boxW = orientations[newBinOrientation][0];
-				float boxH = orientations[newBinOrientation][1];
-				float boxD = orientations[newBinOrientation][2];
+				if (newBinOrientation != -1) {
+					float boxW = orientations[newBinOrientation][0];
+					float boxH = orientations[newBinOrientation][1];
+					float boxD = orientations[newBinOrientation][2];
 
-				Bin newBin = new Bin(activeBins.size(), binTemplate.w, binTemplate.h, binTemplate.d,
-						binTemplate.maxWeight);
-				activeBins.add(newBin);
-				List<Space> spaces = newBin.freeSpaces;
-				spaces.clear(); // remove initial default space if any, we build manually like kernel
+					Bin newBin = new Bin(activeBins.size(), binTemplate.w, binTemplate.h, binTemplate.d,
+							binTemplate.maxWeight);
+					activeBins.add(newBin);
+					List<Space> spaces = newBin.freeSpaces;
+					spaces.clear(); // remove initial default space if any, we build manually like kernel
 
-				// Add box
-				box.size.x = boxW;
-				box.size.y = boxH;
-				box.size.z = boxD;
-				box.position.x = 0;
-				box.position.y = 0;
-				box.position.z = 0;
-				newBin.boxes.add(box);
-				newBin.weight += box.weight;
+					// Add box
+					box.size.x = boxW;
+					box.size.y = boxH;
+					box.size.z = boxD;
+					box.position.x = 0;
+					box.position.y = 0;
+					box.position.z = 0;
+					newBin.boxes.add(box);
+					newBin.weight += box.weight;
 
-				// Initial spaces (EMS style - maximal) around the box at 0,0,0
-				// Right
-				if (boxW < binTemplate.w) {
-					spaces.add(new Space(boxW, 0.0f, 0.0f, binTemplate.w - boxW, binTemplate.h, binTemplate.d));
-				}
-				// Top
-				if (boxH < binTemplate.h) {
-					spaces.add(new Space(0.0f, boxH, 0.0f, binTemplate.w, binTemplate.h - boxH, binTemplate.d));
-				}
-				// Front
-				if (boxD < binTemplate.d) {
-					spaces.add(new Space(0.0f, 0.0f, boxD, binTemplate.w, binTemplate.h, binTemplate.d - boxD));
+					// Initial spaces (EMS style - maximal) around the box at 0,0,0
+					// Right
+					if (boxW < binTemplate.w) {
+						spaces.add(new Space(boxW, 0.0f, 0.0f, binTemplate.w - boxW, binTemplate.h, binTemplate.d));
+					}
+					// Top
+					if (boxH < binTemplate.h) {
+						spaces.add(new Space(0.0f, boxH, 0.0f, binTemplate.w, binTemplate.h - boxH, binTemplate.d));
+					}
+					// Front
+					if (boxD < binTemplate.d) {
+						spaces.add(new Space(0.0f, 0.0f, boxD, binTemplate.w, binTemplate.h, binTemplate.d - boxD));
+					}
 				}
 			}
 		}

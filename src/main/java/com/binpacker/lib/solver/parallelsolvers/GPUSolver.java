@@ -19,6 +19,7 @@ public class GPUSolver implements ParallelSolverInterface {
 	private cl_kernel kernel;
 	private String kernelSource;
 	private Bin binTemplate;
+	private List<Integer> rotationAxes;
 
 	private final String kernelFileName;
 	private final String kernelFunctionName;
@@ -65,6 +66,7 @@ public class GPUSolver implements ParallelSolverInterface {
 	@Override
 	public void init(SolverProperties properties) {
 		this.binTemplate = properties.bin;
+		this.rotationAxes = properties.rotationAxes;
 		this.devicePreference = properties.openCLDevice; // Store for later
 		this.kernelSource = KernelUtils.loadKernelSource(kernelFileName);
 
@@ -119,6 +121,33 @@ public class GPUSolver implements ParallelSolverInterface {
 				CL_MEM_WRITE_ONLY,
 				Sizeof.cl_float * numOrders, null, null);
 
+		// Calculate rotation mask
+		int rotationMask = 0;
+		// Default orientation 0 is always allowed (implicit in kernel usually, but
+		// let's
+		// be explicit in mask if we use it to filter)
+		// Actually, kernel logic usually is:
+		// if (o == 0) allowed
+		// if (o == 1 && (mask & 1)) allowed
+		// if (o == 2 && (mask & 2)) allowed
+		// if (o == 5 && (mask & 4)) allowed
+		// So we need to set bits 0, 1, 2 based on input list values 0, 1, 2.
+
+		List<Integer> rotationAxes = null;
+		// Since SolverProperties has it, we should have stored it in init() or pass it
+		// here.
+		// Wait, ParallelSolverInterface.solve() does not take properties.
+		// We stored 'devicePreference' in init. We should store 'rotationAxes' in init
+		// too!
+		if (this.rotationAxes != null) {
+			if (this.rotationAxes.contains(0))
+				rotationMask |= 1;
+			if (this.rotationAxes.contains(1))
+				rotationMask |= 2;
+			if (this.rotationAxes.contains(2))
+				rotationMask |= 4;
+		}
+
 		// 3. Set kernel args
 		int a = 0;
 		clSetKernelArg(kernel, a++, Sizeof.cl_mem, Pointer.to(boxesMem));
@@ -129,6 +158,7 @@ public class GPUSolver implements ParallelSolverInterface {
 		clSetKernelArg(kernel, a++, Sizeof.cl_float, Pointer.to(new float[] { binTemplate.h }));
 		clSetKernelArg(kernel, a++, Sizeof.cl_float, Pointer.to(new float[] { binTemplate.d }));
 		clSetKernelArg(kernel, a++, Sizeof.cl_float, Pointer.to(new float[] { binTemplate.maxWeight }));
+		clSetKernelArg(kernel, a++, Sizeof.cl_int, Pointer.to(new int[] { rotationMask }));
 
 		// 4. Run kernel
 		long[] globalWorkSize = new long[] { numOrders };

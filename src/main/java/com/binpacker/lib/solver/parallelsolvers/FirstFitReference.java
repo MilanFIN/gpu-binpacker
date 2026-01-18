@@ -12,8 +12,11 @@ public class FirstFitReference implements ReferenceSolver {
 
 	@Override
 
-	public List<Bin> solve(List<Box> boxes, List<Integer> order, Bin binTemplate) {
+	public List<Bin> solve(List<Box> boxes, List<Integer> order,
+			com.binpacker.lib.solver.common.SolverProperties properties) {
 		List<Bin> activeBins = new ArrayList<>();
+		Bin binTemplate = properties.bin;
+		List<Integer> allowedRotations = properties.rotationAxes;
 
 		// Initialize first bin
 		activeBins.add(new Bin(0, binTemplate.w, binTemplate.h, binTemplate.d, binTemplate.maxWeight));
@@ -27,19 +30,12 @@ public class FirstFitReference implements ReferenceSolver {
 
 			boolean placed = false;
 
-			// System.out.println(
-			// "Box: " + order.get(boxIndex) + " dimensions: " + box.size.x + " x " +
-			// box.size.y + " x "
-			// + box.size.z);
-
-			// Generate all 6 orientations
+			// Generate valid orientations
 			float[][] orientations = {
-					{ box.size.x, box.size.y, box.size.z }, // original
-					{ box.size.x, box.size.z, box.size.y }, // rotate around x
-					{ box.size.y, box.size.x, box.size.z }, // rotate around z
-					{ box.size.y, box.size.z, box.size.x }, // rotate around y
-					{ box.size.z, box.size.x, box.size.y }, // diagonal 1
-					{ box.size.z, box.size.y, box.size.x } // diagonal 2
+					{ box.size.x, box.size.y, box.size.z }, // 0: original
+					{ box.size.x, box.size.z, box.size.y }, // 1: rotate around x
+					{ box.size.y, box.size.x, box.size.z }, // 2: rotate around z
+					{ box.size.z, box.size.y, box.size.x } // 3: diagonal 2
 			};
 
 			// Try to fit in existing bins (first-fit)
@@ -55,7 +51,15 @@ public class FirstFitReference implements ReferenceSolver {
 					Space sp = spaces.get(s);
 
 					// Try all orientations, use first fitting
-					for (int o = 0; o < 6; o++) {
+					for (int o = 0; o < 4; o++) {
+						// Filter rotations
+						if (o == 1 && (allowedRotations == null || !allowedRotations.contains(0)))
+							continue;
+						if (o == 2 && (allowedRotations == null || !allowedRotations.contains(1)))
+							continue;
+						if (o == 3 && (allowedRotations == null || !allowedRotations.contains(2)))
+							continue;
+
 						float w = orientations[o][0];
 						float h = orientations[o][1];
 						float d = orientations[o][2];
@@ -127,7 +131,31 @@ public class FirstFitReference implements ReferenceSolver {
 
 				Space sp = newBin.freeSpaces.get(0); // The single initial space
 
-				if (box.size.x <= sp.w && box.size.y <= sp.h && box.size.z <= sp.d) {
+				// Try to fit in new bin with allowed rotations
+				boolean placedInNewBin = false;
+				for (int o = 0; o < 4; o++) {
+					// Filter rotations
+					if (o == 1 && (allowedRotations == null || !allowedRotations.contains(0)))
+						continue;
+					if (o == 2 && (allowedRotations == null || !allowedRotations.contains(1)))
+						continue;
+					if (o == 3 && (allowedRotations == null || !allowedRotations.contains(2)))
+						continue;
+
+					float w = orientations[o][0];
+					float h = orientations[o][1];
+					float d = orientations[o][2];
+
+					if (w <= sp.w && h <= sp.h && d <= sp.d) {
+						box.size.x = w;
+						box.size.y = h;
+						box.size.z = d;
+						placedInNewBin = true;
+						break; // Found first fit in new bin
+					}
+				}
+
+				if (placedInNewBin) {
 					box.position.x = sp.x;
 					box.position.y = sp.y;
 					box.position.z = sp.z;

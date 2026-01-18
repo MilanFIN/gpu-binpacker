@@ -35,7 +35,8 @@ public class ReferenceSolverWeightTest {
 		order.add(1);
 
 		FirstFitReference solver = new FirstFitReference();
-		List<Bin> result = solver.solve(boxes, order, binTemplate);
+		List<Bin> result = solver.solve(boxes, order,
+				new com.binpacker.lib.solver.common.SolverProperties(binTemplate, false, "x", null));
 
 		// Expect 2 bins because 6 + 5 = 11 > 10
 		assertEquals(2, result.size(), "Should use 2 bins due to weight limit");
@@ -65,7 +66,8 @@ public class ReferenceSolverWeightTest {
 		order.add(1);
 
 		BestFitReference solver = new BestFitReference();
-		List<Bin> result = solver.solve(boxes, order, binTemplate);
+		List<Bin> result = solver.solve(boxes, order,
+				new com.binpacker.lib.solver.common.SolverProperties(binTemplate, false, "x", null));
 
 		// Expect 2 bins because 6 + 5 = 11 > 10
 		assertEquals(2, result.size(), "Should use 2 bins due to weight limit");
@@ -95,7 +97,8 @@ public class ReferenceSolverWeightTest {
 		order.add(1);
 
 		BestFitEMSReference solver = new BestFitEMSReference();
-		List<Bin> result = solver.solve(boxes, order, binTemplate);
+		List<Bin> result = solver.solve(boxes, order,
+				new com.binpacker.lib.solver.common.SolverProperties(binTemplate, false, "x", null));
 
 		// Expect 2 bins because 6 + 5 = 11 > 10
 		assertEquals(2, result.size(), "Should use 2 bins due to weight limit");

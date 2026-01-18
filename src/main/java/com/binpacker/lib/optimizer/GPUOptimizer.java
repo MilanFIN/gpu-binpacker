@@ -41,7 +41,9 @@ public class GPUOptimizer extends Optimizer<ParallelSolverInterface> {
 								new com.binpacker.lib.common.Point3f(b.size.x, b.size.y, b.size.z)));
 					}
 
-					List<Bin> solved = referenceSolver.solve(testBoxes, identityOrder, bin);
+					List<Bin> solved = referenceSolver.solve(testBoxes, identityOrder,
+							new com.binpacker.lib.solver.common.SolverProperties(bin, growingBin, growAxis,
+									rotationAxes));
 
 					int maxBins = solved.size() * 2;
 					// Ensure at least some bins
@@ -98,7 +100,8 @@ public class GPUOptimizer extends Optimizer<ParallelSolverInterface> {
 	@Override
 	protected List<List<Box>> finalizeBestSolution(Solution bestSolution) {
 		// Reconstruct the full solution using CPU reference
-		List<Bin> packedBins = referenceSolver.solve(boxes, bestSolution.order, bin);
+		List<Bin> packedBins = referenceSolver.solve(boxes, bestSolution.order,
+				new com.binpacker.lib.solver.common.SolverProperties(bin, growingBin, growAxis, rotationAxes));
 
 		List<List<Box>> result = new ArrayList<>();
 		for (Bin b : packedBins) {

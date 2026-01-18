@@ -22,5 +22,5 @@ public interface ReferenceSolver {
 	 * @param binTemplate The template bin dimensions
 	 * @return List of bins with boxes placed
 	 */
-	List<Bin> solve(List<Box> boxes, List<Integer> order, Bin binTemplate);
+	List<Bin> solve(List<Box> boxes, List<Integer> order, com.binpacker.lib.solver.common.SolverProperties properties);
 }

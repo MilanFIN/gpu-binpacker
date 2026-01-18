@@ -609,7 +609,8 @@ public class GuiApp extends Application {
 			GPUOptimizer gpuOptimizer = new GPUOptimizer();
 			ParallelSolverInterface parallelSolver = (ParallelSolverInterface) selectedSolver;
 			parallelSolver.init(properties);
-			gpuOptimizer.initialize(parallelSolver, boxes, bin, growingBin, axis, this.population, this.eliteCount,
+			gpuOptimizer.initialize(parallelSolver, boxes, bin, growingBin, axis, rotationAxes, this.population,
+					this.eliteCount,
 					true);
 			optimizer = gpuOptimizer;
 		} else if (selectedSolver instanceof SolverInterface) {
@@ -635,7 +636,8 @@ public class GuiApp extends Application {
 				}
 			};
 
-			cpuOptimizer.initialize(factory, boxes, bin, growingBin, axis, this.population, this.eliteCount, threaded);
+			cpuOptimizer.initialize(factory, boxes, bin, growingBin, axis, rotationAxes, this.population,
+					this.eliteCount, threaded);
 			optimizer = cpuOptimizer;
 		} else {
 			statusLabel.setText("Unknown solver type");

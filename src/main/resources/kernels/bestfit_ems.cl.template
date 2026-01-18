@@ -63,7 +63,9 @@ __kernel void best_fit_ems(
     float bin_w,
     float bin_h,
     float bin_d,
-    float bin_weight_limit
+
+    float bin_weight_limit,
+    int rotation_mask
 ) {
     int gid = get_global_id(0);
 
@@ -114,14 +116,12 @@ __kernel void best_fit_ems(
         int best_orientation = -1;
         float best_score = INFINITY;
         
-        // Define all 6 orientations
-        float orientations[6][3] = {
+        // Define valid orientations
+        float orientations[4][3] = {
             {box.w, box.h, box.d},  // 0: original
             {box.w, box.d, box.h},  // 1: rotate around x
             {box.h, box.w, box.d},  // 2: rotate around z
-            {box.h, box.d, box.w},  // 3: rotate around y
-            {box.d, box.w, box.h},  // 4: diagonal 1
-            {box.d, box.h, box.w}   // 5: diagonal 2
+            {box.d, box.h, box.w}   // 3: diagonal 2
         };
 
         // 1. Find Best Fit
@@ -137,8 +137,13 @@ __kernel void best_fit_ems(
             for (int s = 0; s < space_count[b]; s++) {
                 Space sp = spaces[base + s];
 
-                // Try all 6 orientations
-                for (int o = 0; o < 6; o++) {
+                // Try all orientations
+                for (int o = 0; o < 4; o++) {
+                    // Filter rotations
+                    if (o == 1 && !(rotation_mask & 1)) continue;
+                    if (o == 2 && !(rotation_mask & 2)) continue;
+                    if (o == 3 && !(rotation_mask & 4)) continue;
+
                     float w = orientations[o][0];
                     float h = orientations[o][1];
                     float d = orientations[o][2];
@@ -311,7 +316,12 @@ __kernel void best_fit_ems(
 
             // Try orientations for new bin (Fit in empty bin)
             int new_bin_orientation = 0;
-            for (int o = 0; o < 6; o++) {
+            for (int o = 0; o < 4; o++) {
+                // Filter rotations
+                if (o == 1 && !(rotation_mask & 1)) continue;
+                if (o == 2 && !(rotation_mask & 2)) continue;
+                if (o == 3 && !(rotation_mask & 4)) continue;
+
                 if (orientations[o][0] <= bin_w && 
                     orientations[o][1] <= bin_h && 
                     orientations[o][2] <= bin_d) {
