@@ -26,13 +26,13 @@ typedef struct {
 __kernel void guillotine_first_fit(
     __global const Box* boxes,     // All boxes
     __global const int* orders,    // Flattened permutations
-    						__global float* box_scores,
-						__constant int* num_boxes_ptr,
-						__constant float* bin_w_ptr,
-						__constant float* bin_h_ptr,
-						__constant float* bin_d_ptr,
-                        __constant float* max_weight_ptr,
-                        __constant int* rotation_mask_ptr) {
+    __global float* scores,
+						int num_boxes,
+						float bin_w,
+						float bin_h,
+						float bin_d,
+                        float bin_weight_limit,
+                        int rotation_mask) {
     int gid = get_global_id(0);
 
     // ----------------------------------
@@ -273,16 +273,8 @@ __kernel void guillotine_first_fit(
         score = used_volume[0];
     }
     else {
-        printf("SCORE: %f\n", score);
         score /= (bins_used - 1) * bin_w * bin_h * bin_d;
-        printf("CORRECTED: %f\n", score);
     }
-
-    printf("GPU BIN: %d, used volume: %f, spaces: %d\n", 0, used_volume[0], space_count[0]);
-    printf("GPU BIN: %d, used volume: %f, spaces: %d\n", 1, used_volume[1], space_count[1]);
-    printf("GPU BIN: %d, used volume: %f, spaces: %d\n", 2, used_volume[2], space_count[2]);
-
-    printf("GPU BINS TOTAL: %d\n", bins_used);
 
     scores[gid] = score;
 }

@@ -2,8 +2,8 @@
 // Configuration (tune these)
 // ===============================
 
-#define MAX_BINS {{MAX_BINS_VALUE}} //default 64
-#define MAX_SPACES_PER_BIN {{MAX_SPACES_PER_BIN_VALUE}} //default 128
+#define MAX_BINS {{MAX_BINS}} //default 64
+#define MAX_SPACES_PER_BIN {{MAX_SPACES_PER_BIN}} //default 128
 
 // ===============================
 // Data structures
@@ -299,9 +299,7 @@ __kernel void guillotine_best_fit(
         score = used_volume[0];
     }
     else {
-        printf("SCORE: %f\n", score);
         score /= (bins_used - 1) * bin_w * bin_h * bin_d;
-        printf("CORRECTED: %f\n", score);
     }
 
 
