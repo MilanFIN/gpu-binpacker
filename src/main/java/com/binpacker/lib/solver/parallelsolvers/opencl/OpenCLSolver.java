@@ -1,4 +1,4 @@
-package com.binpacker.lib.solver.parallelsolvers;
+package com.binpacker.lib.solver.parallelsolvers.opencl;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,8 +12,10 @@ import com.binpacker.lib.ocl.KernelUtils;
 import com.binpacker.lib.solver.common.SolverProperties;
 import com.binpacker.lib.solver.common.ocl.OCLCommon;
 import com.binpacker.lib.ocl.OpenCLDevice;
+import com.binpacker.lib.solver.parallelsolvers.ParallelSolverInterface;
+import com.binpacker.lib.solver.parallelsolvers.ReferenceSolver;
 
-public class GPUSolver implements ParallelSolverInterface {
+public class OpenCLSolver implements ParallelSolverInterface {
 
 	private OCLCommon ocl = new OCLCommon();
 	private cl_kernel kernel;
@@ -26,7 +28,7 @@ public class GPUSolver implements ParallelSolverInterface {
 	private final String displayName;
 	private final ReferenceSolver referenceSolver;
 
-	public GPUSolver(String kernelFileName, String kernelFunctionName, String displayName,
+	public OpenCLSolver(String kernelFileName, String kernelFunctionName, String displayName,
 			ReferenceSolver referenceSolver) {
 		this.kernelFileName = kernelFileName;
 		this.kernelFunctionName = kernelFunctionName;

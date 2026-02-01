@@ -6,7 +6,7 @@ import java.util.List;
 
 import com.binpacker.lib.common.Bin;
 import com.binpacker.lib.common.Box;
-import com.binpacker.lib.solver.parallelsolvers.GPUSolver;
+import com.binpacker.lib.solver.parallelsolvers.opencl.OpenCLSolver;
 import com.binpacker.lib.solver.parallelsolvers.ParallelSolverInterface;
 import com.binpacker.lib.solver.parallelsolvers.ReferenceSolver;
 
@@ -16,14 +16,14 @@ public class GPUOptimizer extends Optimizer<ParallelSolverInterface> {
 
 	@Override
 	protected List<Solution> evaluatePopulation(List<List<Integer>> population) {
-		// Get reference solver from GPUSolver if available
-		if (referenceSolver == null && solverSource instanceof GPUSolver) {
-			referenceSolver = ((GPUSolver) solverSource).getReferenceSolver();
+		// Get reference solver from OpenCLSolver if available
+		if (referenceSolver == null && solverSource instanceof OpenCLSolver) {
+			referenceSolver = ((OpenCLSolver) solverSource).getReferenceSolver();
 		}
 
 		// Configure and compile kernel if needed (Template support)
-		if (solverSource instanceof GPUSolver) {
-			GPUSolver gpuSolver = (GPUSolver) solverSource;
+		if (solverSource instanceof OpenCLSolver) {
+			OpenCLSolver gpuSolver = (OpenCLSolver) solverSource;
 
 			if (gpuSolver.isTemplate() && !gpuSolver.isCompiled()) {
 				// Estimate needed resources using ReferenceSolver
@@ -92,8 +92,6 @@ public class GPUOptimizer extends Optimizer<ParallelSolverInterface> {
 			scored.add(new Solution(order, finalScore, null));
 		}
 
-		System.out.println("GPU scores: " + scored.stream().map(s -> s.score).toList());
-
 		return scored;
 	}
 
@@ -107,31 +105,6 @@ public class GPUOptimizer extends Optimizer<ParallelSolverInterface> {
 		for (Bin b : packedBins) {
 			result.add(b.boxes);
 		}
-
-		if (result.size() > 1) {
-			double totalVolume = result.subList(0, result.size() - 1).stream()
-					.flatMap(List::stream)
-					.mapToDouble(Box::getVolume)
-					.sum();
-			System.out.println("Total volume used besides last bin: " + totalVolume);
-		}
-
-		// double firstBinVolume = result.get(0).stream()
-		// .mapToDouble(Box::getVolume)
-		// .sum();
-		// System.out.println("CPU bin 0: " + firstBinVolume);
-
-		// double secondBinVolume = result.get(1).stream()
-		// .mapToDouble(Box::getVolume)
-		// .sum();
-		// System.out.println("CPU bin 1: " + secondBinVolume);
-
-		// double thirdBinVolume = result.get(2).stream()
-		// .mapToDouble(Box::getVolume)
-		// .sum();
-		// System.out.println("CPU bin 2: " + thirdBinVolume);
-
-		// System.out.println("CPU BINS TOTAL: " + result.size());
 
 		return result;
 

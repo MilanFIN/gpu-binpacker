@@ -13,7 +13,8 @@ import com.binpacker.lib.solver.cpusolvers.SolverInterface;
 import com.binpacker.lib.solver.parallelsolvers.BestFitEMSReference;
 import com.binpacker.lib.solver.parallelsolvers.BestFitReference;
 import com.binpacker.lib.solver.parallelsolvers.FirstFitReference;
-import com.binpacker.lib.solver.parallelsolvers.GPUSolver;
+import com.binpacker.lib.solver.parallelsolvers.opencl.OpenCLSolver;
+import com.binpacker.lib.solver.parallelsolvers.cuda.CudaSolver;
 import com.binpacker.lib.solver.parallelsolvers.ParallelSolverInterface;
 import com.binpacker.lib.optimizer.CPUOptimizer;
 import com.binpacker.lib.optimizer.GPUOptimizer;
@@ -267,9 +268,11 @@ public class GuiApp extends Application {
 					return "3D best fit bsp";
 				} else if (solver instanceof BestFitEMS) {
 					return "Best Fit EMS";
-				} else if (solver instanceof GPUSolver) {
-					GPUSolver gpuSolver = (GPUSolver) solver;
+				} else if (solver instanceof OpenCLSolver) {
+					OpenCLSolver gpuSolver = (OpenCLSolver) solver;
 					return gpuSolver.getDisplayName();
+				} else if (solver instanceof CudaSolver) {
+					return "BestFit EMS (CUDA)";
 				}
 				return solver.getClass().getSimpleName(); // Fallback
 			}
@@ -281,12 +284,13 @@ public class GuiApp extends Application {
 			}
 		});
 		this.solverComboBox.getItems().addAll(new FirstFit3D(), new FirstFit2D(), new BestFit3D(), new BestFitEMS(),
-				new GPUSolver("firstfit_complete.cl.template", "guillotine_first_fit", "FirstFit GPU (Parallel)",
+				new OpenCLSolver("firstfit_complete.cl.template", "guillotine_first_fit", "FirstFit GPU (Parallel)",
 						new FirstFitReference()),
-				new GPUSolver("bestfit_complete.cl.template", "guillotine_best_fit", "BestFit GPU (Parallel)",
+				new OpenCLSolver("bestfit_complete.cl.template", "guillotine_best_fit", "BestFit GPU (Parallel)",
 						new BestFitReference()),
-				new GPUSolver("bestfit_ems.cl.template", "best_fit_ems", "BestFit EMS GPU (Parallel)",
-						new BestFitEMSReference()));
+				new OpenCLSolver("bestfit_ems.cl.template", "best_fit_ems", "BestFit EMS GPU (Parallel)",
+						new BestFitEMSReference()),
+				new CudaSolver());
 		this.solverComboBox.setValue(this.solverComboBox.getItems().get(0)); // Set default to the first item
 
 		Label solverOptions = new Label("Solver Options:");
